@@ -1,0 +1,124 @@
+CENTRO DE NOTIFICACIONES ESTILO APPLE (iOS Notification Center) — LIQUID GLASS OSCURO
+=======================================================================================
+Implementa un centro de notificaciones reutilizable idéntico al Centro de
+Notificaciones de iOS actual (Liquid Glass, tema oscuro). Es genérico: cada web app
+le pasa SUS propias notificaciones; el componente no sabe de dónde salen.
+
+REGLA DE ORO DE LA ESTÉTICA
+---------------------------
+- UN SOLO fondo: el overlay oscuro difuminado. NO pongas un contenedor/tarjeta
+  opaca detrás de las notificaciones — eso crea el "doble fondo" y mata el glass.
+- Cada notificación es su PROPIA píldora de vidrio oscuro translúcido, flotando
+  directamente sobre el overlay. Los encabezados de grupo/subcategoría son solo
+  TEXTO CLARO flotando (sin caja).
+- Todo el texto dentro del panel es BLANCO/claro (el fondo es oscuro).
+
+1. OVERLAY (único fondo)
+------------------------
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(28,28,30,0.52);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  display:flex; justify-content:center; align-items:flex-start; padding:14px;
+- Clic en el overlay = cerrar (minimizar), igual que iOS. El contenido interno
+  hace stopPropagation para que el clic dentro no cierre.
+- Contenido: width:100%; max-width:420px; margin-top:56px; max-height:84vh;
+  overflow-y:auto; columna con gap:14px.
+- Rótulo superior tenue, centrado, mayúsculas, color rgba(255,255,255,0.72):
+  "Desliza una notificación a la izquierda para eliminarla".
+
+2. CAMPANA EN EL ENCABEZADO
+---------------------------
+- Junto al logo, un icono de campana. SOLO visible si hay ≥1 notificación activa.
+- Badge circular con el total (color de acento). Clic = abre/cierra el panel.
+
+3. AGRUPACIÓN (como iOS): tipo → subcategoría → notificaciones
+-------------------------------------------------------------
+- Encabezado de GRUPO (por tipo): fila con icono + título en mayúsculas +
+  contador, todo texto claro, SIN caja:
+    icono color rgba(255,255,255,0.92); título letter-spacing:0.16em,
+    text-transform:uppercase, rgba(255,255,255,0.92); contador rgba(255,255,255,0.6).
+- Rótulo de SUBCATEGORÍA: texto pequeño mayúsculas rgba(255,255,255,0.5), sin caja.
+- Cada web app define sus tipos y subcategorías con una función que clasifica por
+  palabra clave del texto.
+
+4. PÍLDORA DE NOTIFICACIÓN (liquid glass oscuro)
+------------------------------------------------
+  border-radius: 22px;
+  background: rgba(72,72,74,0.42);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22);   /* realce superior = brillo de vidrio */
+  box-sizing: border-box; padding: 13px 17px;
+- Contenido en fila: bloque de texto (flex:1) + timestamp a la derecha.
+  Texto principal: 13.5px, rgba(255,255,255,0.98).
+  Contexto (proyecto/fecha/persona): 11.5px, rgba(255,255,255,0.68).
+  TIMESTAMP: columna propia — flex-shrink:0; min-width:34px; text-align:right;
+  font-size:10.5px; color:rgba(255,255,255,0.6). (Sin min-width se corta bajo
+  el borde redondeado de la píldora.)
+
+5. TIMESTAMP RELATIVO ESTILO iPHONE
+-----------------------------------
+  const ahora = Date.now();
+  const haceTxt = (ms) => {
+    const min = Math.round((ahora - ms) / 60000);
+    if (min < 1) return "ahora";
+    if (min < 60) return min + "m";                 // "20m"
+    const d = new Date(ms);
+    const dias = (ahora - ms) / 86400000;
+    if (dias < 1) return ("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2); // "14:30" (>3h el mismo día)
+    return d.toLocaleDateString("es-GT", { day:"numeric", month:"short" });               // "14 ago" (>1 día)
+  };
+  (Regla iOS: <1h → "Nm"; el mismo día pasado un rato → la hora; >1 día → la fecha.)
+
+6. SWIPE-LEFT PARA ELIMINAR (sin JS, con scroll-snap; botón oculto hasta el swipe)
+---------------------------------------------------------------------------------
+- NO uses un botón absoluto detrás (se transparenta y se ve). Usa un contenedor
+  horizontal con scroll-snap y DOS hijos en fila:
+    contenedor: display:flex; overflow-x:auto; scroll-snap-type:x mandatory;
+                scrollbar-width:none; -ms-overflow-style:none; border-radius:22px; gap:8px;
+    hijo 1 (contenido): flex:0 0 100%; scroll-snap-align:start;  (onClick = navegar)
+    hijo 2 (Eliminar):  flex:0 0 80px; scroll-snap-align:end; border-radius:22px;
+                        background:rgba(192,57,43,0.9); color:#fff; mayúsculas.
+  El botón vive fuera de vista a la derecha; solo aparece al deslizar y el snap
+  lo deja fijo. ELIMINACIÓN SOLO INDIVIDUAL — nunca "borrar todo el grupo".
+
+7. NAVEGACIÓN
+-------------
+- Clic en el cuerpo de una notificación: cierra el panel y lleva DIRECTO a la
+  sección donde se resuelve (cada item trae su propio callback).
+
+8. ESTADO Y LÓGICA (patrón adaptable)
+-------------------------------------
+- Estado: notiPanel (abierto/cerrado) + notiDismiss (mapa id -> true).
+- Arma las notificaciones desde tus fuentes con id ESTABLE (para que "eliminar"
+  persista) y fíltralas contra notiDismiss:
+
+  const items = fuente.map((x,i) => ({
+    id: "cat-"+i+"-"+x.texto, texto:x.texto, contexto:x.contexto, cuando: haceTxt(x.ts),
+    abrir: () => { setNotiPanel(false); x.irA(); },
+    quitar: () => setDismiss({ ...dismiss, ["cat-"+i+"-"+x.texto]: true })
+  })).filter(n => !dismiss[n.id]);
+
+  // subcategoría por palabra clave
+  const subcat = (t) => { t=(t||"").toLowerCase();
+    if (/visita/.test(t)) return "Visitas";
+    if (/contrato|firma/.test(t)) return "Contratos";
+    if (/dep[oó]sito|presupuesto/.test(t)) return "Presupuesto";
+    if (/factura/.test(t)) return "Facturas";
+    return "General"; };
+
+  // agrupa: tipo -> subcategoría -> items
+  // grupos = [{ titulo, icon, count, subgrupos:[{ label, items:[...] }] }]
+
+  const total  = /* items visibles */;
+  const hayNoti = total > 0;                // controla la campana
+  const vacio   = grupos.length === 0;      // "Sin notificaciones. Todo al día."
+
+9. DETALLES
+-----------
+- Sin emoji. Iconos del set de la marca. Respeta prefers-reduced-motion.
+- Reutilización entre apps: cambian SOLO las fuentes, los tipos/subcategorías y los
+  callbacks de navegación. Overlay, campana, píldora glass oscura, timestamp y
+  swipe son idénticos en todos los web apps.

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/spacio-am-design-system-2c08fe78-561e-46a1-8758-5fd6396bf54d/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/spacio-am-design-system-2c08fe78-561e-46a1-8758-5fd6396bf54d/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/spacio-am-design-system-2c08fe78-561e-46a1-8758-5fd6396bf54d/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/spacio-am-design-system-2c08fe78-561e-46a1-8758-5fd6396bf54d/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/spacio-am-design-system-2c08fe78-561e-46a1-8758-5fd6396bf54d/tokens/radius-shadow.css">
+  <link rel="stylesheet" href="_ds/spacio-am-design-system-2c08fe78-561e-46a1-8758-5fd6396bf54d/tokens/motion.css">
+  <link rel="stylesheet" href="_ds/spacio-am-design-system-2c08fe78-561e-46a1-8758-5fd6396bf54d/tokens/base.css">
+  <link rel="stylesheet" href="_ds/spacio-am-design-system-2c08fe78-561e-46a1-8758-5fd6396bf54d/styles.css">
+  <script src="_ds/spacio-am-design-system-2c08fe78-561e-46a1-8758-5fd6396bf54d/_ds_bundle.js"></script>
+  <style>
+    html,body{margin:0;padding:0;background:var(--bg)}
+    a{color:var(--fg);text-decoration-color:var(--accent)}
+    a:hover{opacity:.6}
+  </style>
+</helmet>
+<div style="min-height:100vh;background:var(--bg);font-family:var(--font-sans);color:var(--fg);letter-spacing:0.01em">
+  <header style="position:sticky;top:0;z-index:100;background:rgba(250,250,250,0.88);backdrop-filter:blur(20px) saturate(120%);border-bottom:1px solid var(--divider)">
+    <div style="max-width:1080px;margin:0 auto;padding:12px clamp(16px,3.5vw,32px);display:flex;align-items:center;gap:12px 20px;flex-wrap:wrap">
+      <img src="assets/brand/logo-primary-transparent.png" alt="Spacio AM" style="height:32px;width:auto;display:block">
+      <span class="t-eyebrow" style="border-left:1px solid var(--divider);padding-left:20px">Base de datos · Google Sheets</span>
+      <div style="flex:1"></div>
+      <a href="Spacio AM Gestión.dc.html" style="font-size:11.5px;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;color:var(--fg-muted)">← Volver a la app</a>
+    </div>
+  </header>
+  <div style="max-width:1080px;margin:0 auto;padding:48px clamp(16px,3.5vw,32px) 96px;display:flex;flex-direction:column;gap:40px">
+    <div style="display:flex;flex-direction:column;gap:12px;max-width:720px">
+      <x-import component-from-global-scope="SpacioAMDesignSystem_2c08fe.Eyebrow" hint-size="auto,16px">Esquema de datos</x-import>
+      <h1 class="t-h1">Un archivo, una hoja por entidad.</h1>
+      <p style="margin:0;font-size:14px;color:var(--fg-muted);line-height:1.9">La base vive en un solo Google Sheet — <strong style="color:var(--fg)">Spacio AM · Gestión</strong> — con una pestaña por entidad, pensada para leerse y editarse a mano: encabezados congelados en la fila 1, formato de tabla con bandas alternas, validación por lista en las columnas de estado, y nada de celdas combinadas. La app lee y escribe por Apps Script / API; una persona puede corregir cualquier fila sin romper nada.</p>
+      <p style="margin:0;font-size:13px;color:var(--fg-muted);line-height:1.9">Todo vive dentro de una sola carpeta madre en Google Drive — <a href="https://drive.google.com/drive/folders/1JRU6j3ZrPqPKCPwBtZSU8lZWqXKq4QM0" target="_blank" rel="noopener"><strong style="color:var(--fg)">Spacio AM · Gestión</strong></a> — que contiene el Sheet de base de datos y las carpetas de cada propiedad, organizadas como se muestra abajo.</p>
+    </div>
+
+    <sc-for list="{{ hojas }}" as="h" hint-placeholder-count="6">
+      <div style="background:var(--surface);border-radius:28px;box-shadow:var(--shadow-sm);padding:clamp(18px,3vw,32px);display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+          <span style="font-size:10.5px;letter-spacing:0.2em;color:var(--fg-muted)" class="t-num">{{ h.num }}</span>
+          <span class="t-h3">{{ h.nombre }}</span>
+          <span style="font-size:12px;color:var(--fg-muted)">{{ h.desc }}</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="border-collapse:collapse;width:100%;font-size:12.5px">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding:8px 14px;border-bottom:2px solid var(--fg);font-family:var(--font-sans);font-size:10.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--fg-muted);white-space:nowrap">Columna</th>
+                <th style="text-align:left;padding:8px 14px;border-bottom:2px solid var(--fg);font-size:10.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--fg-muted)">Tipo</th>
+                <th style="text-align:left;padding:8px 14px;border-bottom:2px solid var(--fg);font-size:10.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--fg-muted)">Ejemplo / notas</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ h.cols }}" as="c" hint-placeholder-count="6">
+                <tr style="border-bottom:1px solid var(--color-ink-08)">
+                  <td style="padding:8px 14px;font-weight:600;white-space:nowrap" class="t-num">{{ c.n }}</td>
+                  <td style="padding:8px 14px;color:var(--fg-muted);white-space:nowrap">{{ c.t }}</td>
+                  <td style="padding:8px 14px;color:var(--fg-muted);line-height:1.6">{{ c.e }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+        <sc-if value="{{ h.nota }}" hint-placeholder-val="{{ false }}">
+          <div style="background:var(--bg-alt);border-radius:14px;padding:14px 20px;font-size:12px;color:var(--fg-muted);line-height:1.7">{{ h.nota }}</div>
+        </sc-if>
+      </div>
+    </sc-for>
+
+    <div style="background:var(--fg);color:var(--surface);border-radius:28px;padding:36px;display:flex;flex-direction:column;gap:14px">
+      <span class="t-eyebrow" style="color:var(--color-warm-grey)">Google Drive · carpeta madre</span>
+      <span style="font-family:var(--font-serif);font-size:24px">Estructura de carpetas</span>
+      <pre style="margin:0;font-family:var(--font-sans);font-size:13px;line-height:2;white-space:pre-wrap;opacity:0.9">Spacio AM · Gestión/            (carpeta madre — un solo lugar)
+├── Spacio AM · Gestión (Sheet)  ← la base de datos, una pestaña por entidad
+├── Plantillas/                  (machotes de contrato, guía de fotos)
+└── Propiedades/
+    └── &lt;Edificio&gt;/
+        └── &lt;Apartamento&gt;/
+            ├── 01 Fotos visita/
+            ├── 02 Anteproyecto/     (renders IA, 4 por espacio)
+            ├── 03 Presupuesto/      (PDF enviado + comprobante de depósito)
+            ├── 04 Contrato/         (PDF firmado + certificado)
+            ├── 05 Facturas/         (una por archivo; foto → reemplazar por PDF)
+            ├── 06 Recepciones/      (fotos y documentos de mercadería recibida)
+            └── 07 Fotos pro/</pre>
+      <p style="margin:0;font-size:12px;opacity:0.7;line-height:1.8">Cada fila de FOTOS, FACTURAS, CONTRATOS y RECEPCIONES guarda el enlace de Drive de su archivo. La hoja es el índice; Drive es el archivo. Todo cuelga de la carpeta madre.</p>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const H = (num, nombre, desc, cols, nota) => ({ num, nombre, desc, cols: cols.map(c => ({ n: c[0], t: c[1], e: c[2] })), nota: nota || null });
+    return { hojas: [
+      H("01", "PROYECTOS", "Una fila por apartamento en el embudo. Es la hoja madre: todas las demás referencian proyecto_id.", [
+        ["proyecto_id", "texto (único)", "RUE-301 · se genera al entrar el formulario"],
+        ["nombre", "texto", "Rue 301"],
+        ["edificio", "texto", "Rue de la Paix"], ["apartamento", "texto", "301"],
+        ["zona", "texto", "Zona 4"], ["habitaciones / banos", "número", "2 · 2"],
+        ["tipo", "lista", "Edificio · Condominio"],
+        ["equipado", "lista", "Sin equipar · Solo detalles · Equipado completo"],
+        ["linea_blanca", "lista", "Sí · No"],
+        ["dueno_id", "ref → DUENOS", "marcel-r"],
+        ["etapa", "lista", "01 Desconocido … 15 Revisión · Descartado — alimenta embudo y Gantt"],
+        ["farol", "lista", "success · attention · warning · error · info · pending"],
+        ["amueblado_por_nosotros / con_anteproyecto", "lista Sí/No", "definen si hay bloque de diseño"],
+        ["motivo_descarte", "texto", "solo si etapa = Descartado; nada se borra"],
+        ["fecha_ingreso", "fecha", "2026-05-12"],
+        ["carpeta_drive", "URL", "enlace a la carpeta del apartamento"]
+      ]),
+      H("02", "DUENOS", "Usuarios propietarios. Un dueño puede tener varias propiedades y ve todas sus propuestas juntas.", [
+        ["dueno_id", "texto (único)", "usuario ID que no esté en uso — validado contra esta columna"],
+        ["nombre", "texto", "Marcel Reiche"], ["email", "correo", "para reuniones, recordatorios y firma"],
+        ["telefono", "texto", "+502 …"],
+        ["nit / sujeto_retencion / regimen", "texto · lista · lista", "del formulario fiscal previo al presupuesto"],
+        ["dpi_url", "URL Drive", "foto de DPI ambos lados (o pasaporte)"],
+        ["representante / acta_url", "texto · URL", "si firma un representante legal"]
+      ]),
+      H("03", "EMBUDO_EVENTOS", "Bitácora de movimientos de etapa. De aquí sale el Gantt y la medición del embudo de ventas.", [
+        ["evento_id", "auto", "E-000341"], ["proyecto_id", "ref", "RUE-301"],
+        ["fecha_hora", "fecha y hora", "2026-06-10 09:30"],
+        ["de_etapa → a_etapa", "lista", "Presupuesto → Contrato"],
+        ["usuario", "texto", "quién movió la etapa"], ["nota", "texto", "opcional"]
+      ]),
+      H("04", "REUNIONES", "Reuniones por Google Meet con su transcripción guardada para revisión.", [
+        ["reunion_id", "auto", "R-0088"], ["proyecto_id", "ref", "FIA-404"],
+        ["fecha_hora", "fecha y hora", "2026-07-09 15:00"],
+        ["enlace_meet", "URL", "meet.google.com/…"],
+        ["correo_enviado", "lista Sí/No", "invitación al propietario"],
+        ["transcripcion", "texto largo", "texto completo de la reunión"],
+        ["resumen_ia", "texto largo", "resumen con expectativa, modalidad y acuerdos"]
+      ]),
+      H("05", "VISITAS", "El formulario que llena el usuario asignado, en orden: fotos → inventario → info del edificio.", [
+        ["visita_id", "auto", "V-0102"], ["proyecto_id", "ref", "EON-901"],
+        ["asignado_a", "ref → USUARIOS", "Gabriel Asturias — correo a ambas partes al asignar"],
+        ["fecha", "fecha", "2026-08-21"], ["completa", "lista Sí/No", ""],
+        ["parqueo / chapa_digital / proceso_ingreso / restricciones", "texto", "número de parqueo, ¿se agrega chapa o ya tiene?"],
+        ["tarjeta_acceso / entrega_tarjeta", "lista · lista", "Sí/No · Recepción/Buzón"],
+        ["equipado / detalles_faltantes", "lista · texto", "si son detalles: jaboneras, arte, sábanas…"],
+        ["equip_electrodomesticos / torre_lavado", "lista Con/Sin", "solo si equipamiento completo"],
+        ["lavado", "lista", "Apartamento · Edificio"],
+        ["amenidades / reglas_admin / parqueo_pago", "texto", "del edificio"],
+        ["num_fotos / carpeta_fotos", "número · URL", "3 por ambiente, 1–2 por baño → Drive edificio/apartamento"]
+      ]),
+      H("06", "ANTEPROYECTO", "Una fila por espacio propuesto. Spacio AM nombra el espacio y sube 4 renders.", [
+        ["ante_id", "auto", "A-0301"], ["proyecto_id", "ref", "RUE-301"],
+        ["espacio", "texto", "Sala · Dormitorio principal…"],
+        ["render_1 … render_4", "URL Drive", "4 opciones de decoración"],
+        ["visible_dueno", "lista Sí/No", "hay proyectos donde el dueño no ve nada"],
+        ["favorita", "número 1–4", "elección del dueño"],
+        ["comentario_dueno", "texto largo", "¿qué te gustó más? ¿algo que quitarías?"],
+        ["respuesta_spacio", "texto largo", "opcional; a veces solo se ajusta presupuesto"]
+      ], "El costo del anteproyecto va al presupuesto: Q1,500 (1 hab), Q2,000 (2), Q2,500 (3), editable en proyectos más grandes."),
+      H("07", "CATALOGO_ITEMS", "Histórico de items para el presupuesto pre-armado. Siempre guarda el precio más alto visto.", [
+        ["item", "texto (único)", "Sofá"], ["categoria", "lista", "Baños · Sala / Comedor · Habitaciones · Cocina"],
+        ["precio_max", "moneda Q", "Q6,000 — se actualiza si un presupuesto usa uno mayor"],
+        ["proveedor_sugerido", "ref → PROVEEDORES", "Suo"]
+      ], "Un item nuevo agregado en cualquier presupuesto se suma aquí y alimenta la lista desplegable."),
+      H("08", "PRESUPUESTOS", "Cabecera de cada presupuesto. El detalle vive en PRESUPUESTO_ITEMS.", [
+        ["presupuesto_id", "auto", "P-0055"], ["proyecto_id", "ref", "RUE-301"],
+        ["estado", "lista", "Borrador · Enviado · Cambios solicitados · Aprobado"],
+        ["mobiliario_total", "fórmula", "SUMA de sus items"],
+        ["fee_pct / fee_monto", "número · fórmula", "10% solo si mobiliario > Q10,000"],
+        ["anteproyecto_q", "moneda Q", "según habitaciones"],
+        ["fotos_pro_usd", "moneda $", "$150 / $200 / $250 — precio especial editable"],
+        ["total", "fórmula", "mobiliario + fee + anteproyecto + fotos"],
+        ["deposito_fecha / deposito_monto / comprobante_url", "fecha · Q · URL", "hito que habilita la ejecución"],
+        ["recordatorios_enviados", "número", "correos de seguimiento al dueño"]
+      ]),
+      H("09", "PRESUPUESTO_ITEMS", "Detalle línea por línea — el formato de las pestañas de presupuesto actuales.", [
+        ["presupuesto_id", "ref", "P-0055"], ["categoria", "lista", "Habitaciones"],
+        ["item", "texto", "Colchón"], ["precio_unitario", "moneda Q", "Q2,400"],
+        ["cantidad", "número", "2"], ["subtotal", "fórmula", "precio × cantidad"],
+        ["status", "lista", "Pendiente · Comprado · Entrega programada"],
+        ["proveedor / encargado", "texto", "Suo · Gabriel"]
+      ]),
+      H("10", "FACTURAS", "Control de compras. Cada archivo queda en Drive; la hoja es el índice y el match contra presupuesto.", [
+        ["factura_id", "auto", "F-0410"], ["numero_factura", "texto", "3107275642"],
+        ["fecha", "fecha", "2026-06-28"], ["monto", "moneda Q", "Q6,782.79"],
+        ["descripcion", "texto", "extraída de la factura, editable"],
+        ["proveedor", "ref → PROVEEDORES", "nombre tal como aparece en factura"],
+        ["formato", "lista", "PDF · Foto — la foto lleva tag para reemplazarla por PDF"],
+        ["entrega", "lista + fecha", "Inmediata · Programada (alimenta el Gantt)"],
+        ["es_global", "lista Sí/No", "la factura total del proyecto, separada del resto, se sube de último"],
+        ["sin_factura_aun", "lista Sí/No", "items que agrega solo el admin principal; la factura se sube después"],
+        ["archivo_url", "URL Drive", "carpeta 05 Facturas del apartamento"]
+      ]),
+      H("11", "FACTURA_ASIGNACIONES", "Una factura puede repartirse entre varios apartamentos y ligarse a varios items del presupuesto.", [
+        ["factura_id", "ref", "F-0410"], ["proyecto_id", "ref", "RUE-301"],
+        ["monto_asignado", "moneda Q", "en partes iguales o valor definido por el usuario"],
+        ["items_presupuesto", "lista separada por comas", "TV, Toallas de cuerpo — checkboxes en la app"],
+      ], "Un item del presupuesto puede recibir varias facturas (p. ej. \"planta grande\" = maceta + planta)."),
+      H("12", "PROVEEDORES", "Se crean solos con la primera factura; el administrador les pone alias y descripción.", [
+        ["nombre_factura", "texto (único)", "DISTRIBUIDORA CEMACO S.A."],
+        ["alias", "texto", "Cemaco"], ["descripcion", "texto", "menaje y línea blanca"],
+        ["contacto", "texto", "teléfono / WhatsApp"], ["correo", "correo", "ventas@cemaco.com"],
+        ["notas", "texto", "crédito a 30 días, tiempos de entrega, anticipos"]
+      ]),
+      H("13", "CONTRATOS", "Reemplaza a eSign: seguimiento de firmas, certificado y copia por propiedad.", [
+        ["contrato_id", "auto", "C-0031"], ["proyecto_id", "ref", "RUE-301"],
+        ["estado", "lista", "Sin iniciar · Datos pendientes · Enviado a firma · Firmado"],
+        ["firmantes", "hoja FIRMAS", "puede haber más de un firmante por el lado del dueño"],
+        ["fecha_envio / fecha_firma", "fecha", ""],
+        ["pdf_url / certificado_url", "URL Drive", "copia enviada a ambas partes al completarse"],
+        ["previo_a_plataforma", "lista Sí/No", "para propiedades viejas se sube el documento firmado"]
+      ], "Los espacios de firma están preestablecidos en el machote (posición por página), para que el PDF final conserve membrete y texto legible."),
+      H("14", "FIRMAS", "Una fila por firmante y contrato.", [
+        ["contrato_id", "ref", "C-0031"], ["nombre / rol", "texto", "Marcel Reiche · Propietario"],
+        ["correo", "correo", "solicitud de firma"],
+        ["metodo", "lista", "Digital · Imagen subida · Imagen del historial"],
+        ["firma_url", "URL Drive", "imagen guardada; reutilizable desde el historial del usuario"],
+        ["fecha_hora / ip", "fecha y hora · texto", "para el certificado"]
+      ]),
+      H("15", "CHECKLIST", "Pre-lanzamiento y lanzamiento. Los items base se pueden ampliar manualmente.", [
+        ["proyecto_id", "ref", "RUE-301"],
+        ["item", "lista ampliable", "Internet · Limpieza inicial · Insumos · Cerradura inteligente · Calentador · Electricidad · Tarjetas de acceso · Llave locker"],
+        ["hecho", "casilla", "☑"], ["fecha / responsable", "fecha · texto", ""]
+      ]),
+      H("16", "REVISION_POSTLANZAMIENTO", "Checklists por hito tras el lanzamiento (2 sem / 4 sem / 1 / 2 / 3 meses). Los items son plantilla global y aparecen en todos los proyectos.", [
+        ["proyecto_id", "ref → PROYECTOS", "RUE-301"],
+        ["hito", "lista", "2sem · 4sem · 1mes · 2mes · 3mes"],
+        ["item", "lista ampliable global", "Ajuste de precio · Reseñas · Cierre financiero · Análisis IA a 3 meses"],
+        ["hecho", "casilla", "☑"], ["fecha / responsable", "fecha · ref USUARIOS", ""]
+      ]),
+      H("17", "USUARIOS", "Equipo interno: administradores y personal de campo. Alimenta la asignación de tareas y el alcance del admin secundario.", [
+        ["usuario_id", "texto (único)", "gabriel"], ["nombre", "texto", "Gabriel Asturias"], ["inicial", "texto", "GA (para avatares)"],
+        ["rol", "lista", "Administrador principal · Administrador secundario · Personal de campo · Compras y montaje"],
+        ["email", "correo", "recibe correos de tareas y visitas asignadas"]
+      ]),
+      H("18", "TAREAS", "Una fila por tarea del proyecto (Kanban + Gantt). Vienen de la plantilla por etapa; el admin agrega o edita.", [
+        ["tarea_id", "auto", "T-0455"], ["proyecto_id", "ref → PROYECTOS", "RUE-301"],
+        ["etapa", "lista", "reunion · visita · anteproyecto · presupuesto · contrato · ejecucion · fotos · lanzamiento"],
+        ["nombre", "texto", "Compras de mobiliario"],
+        ["responsable_id", "ref → USUARIOS", "andrea · asignable por tarea"],
+        ["es_equipo", "lista Sí/No", "trabajo en equipo (varios asignados) vs. individual"],
+        ["estado", "lista", "Por hacer · En progreso · Completada"],
+        ["fecha_inicio / fecha_fin", "fecha", "derivadas de la duración; editables (drag en Gantt)"],
+        ["dias_duracion", "número", "alimenta la barra del Gantt"],
+        ["depende_de", "ref → TAREAS", "la fecha de inicio encadena con el fin de esta tarea"],
+        ["item_presupuesto", "ref → PRESUPUESTO_ITEMS", "si la tarea es un ítem: completa al subir factura, en progreso si comprado/recibido"]
+      ], "Los ítems del presupuesto son también tareas: se completan al subir su factura y pasan a «en progreso» al marcarse comprado/recibido."),
+      H("19", "SUBTAREAS", "Checklist dentro de una tarea (Paymo).", [
+        ["subtarea_id", "auto", "ST-1201"], ["tarea_id", "ref → TAREAS", "T-0455"],
+        ["nombre", "texto", "Cotizar sofá con 3 proveedores"], ["hecha", "casilla", "☑"]
+      ]),
+      H("20", "TAREA_COMENTARIOS", "Discusión por tarea, con @menciones (reemplaza el ruido de chat).", [
+        ["comentario_id", "auto", "TC-3390"], ["tarea_id", "ref → TAREAS", "T-0455"],
+        ["autor", "texto / ref USUARIOS", "Gabriel Asturias"], ["texto", "texto largo", "usa @nombre para mencionar y notificar"],
+        ["fecha_hora", "fecha y hora", "19 ago, 10:24"]
+      ]),
+      H("21", "MILESTONES", "Hitos clave del proyecto que se muestran en el calendario del proyecto.", [
+        ["milestone_id", "auto", "M-0088"], ["proyecto_id", "ref → PROYECTOS", "RUE-301"],
+        ["nombre", "texto", "Depósito recibido · Contrato firmado · Montaje final · Lanzamiento"],
+        ["fecha", "fecha", ""], ["estado", "lista", "Cumplido · Pendiente"]
+      ]),
+      H("22", "CONTACTOS", "Contactos de primera llamada, antes de que entren al proceso. Los llena el administrador.", [
+        ["contacto_id", "auto", "C-0021"], ["nombre", "texto", "Lucía Mendoza"],
+        ["contacto", "texto", "teléfono o correo"], ["info", "texto", "cómo llegó, cuántos aptos, notas"],
+        ["estado", "lista", "Por llamar · Llamado"], ["fecha_creado", "fecha", ""]
+      ]),
+      H("23", "RECEPCIONES", "Recepción de mercadería por el formulario público (sin login, por link).", [
+        ["recepcion_id", "auto", "R-0410"], ["proyecto_id", "ref → PROYECTOS", "dropdown en el formulario"],
+        ["fecha", "fecha", ""], ["numero_doc", "texto", "si coincide con una factura → estado «entregado» automático"],
+        ["llego_doc / completo / buen_estado / cuadra", "lista Sí/No", "checks del formulario"],
+        ["fotos", "número · URL Drive", "mínimo 3 fotos generales"],
+        ["comentario", "texto", "qué faltó u observaciones"], ["estado", "lista", "Entregado · Pendiente (manual o por match)"]
+      ]),
+      H("24", "CORREOS", "Bitácora y cola de correos: enviados, programados y frenados. Mismo formato que la hoja actual de Spacio AM.", [
+        ["correo_id", "auto", "E-0912"], ["fecha_hora", "fecha y hora", ""],
+        ["tipo", "ref → CORREO_TEMPLATES", "seguimiento · recordatorio · reunion · deposito · lanzamiento"],
+        ["para", "correo(s)", ""], ["asunto", "texto", "editable antes de enviar"],
+        ["proyecto_id", "ref → PROYECTOS", ""], ["estado", "lista", "Enviado · Programado · Frenado"]
+      ]),
+      H("25", "CORREO_TEMPLATES", "Plantillas editables con el brand voice de Spacio AM. El cambio aplica a todos los envíos futuros del tipo.", [
+        ["template_id", "texto (único)", "recordatorio"], ["nombre", "texto", "Recordatorio de presupuesto"],
+        ["asunto", "texto", "usa {nombre} y {propiedad} como variables"], ["cuerpo", "texto largo", "cuerpo con variables"],
+        ["cta", "texto", "etiqueta del botón (Revisar presupuesto)"]
+      ])
+    ] };
+  }
+}
+</script>
+</body>
+</html>

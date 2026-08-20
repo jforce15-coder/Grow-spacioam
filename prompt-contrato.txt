@@ -1,0 +1,105 @@
+Corrige la vista de impresión del contrato (hoja membretada). Tiene 5 puntos; arréglalos sin tocar la lógica de datos.
+
+====================================================================
+1. IMAGEN DE FONDO MEMBRETADA
+====================================================================
+- Debe ser UNA SOLA imagen que llene toda la hoja, en TODAS las páginas (no solo la primera).
+- Aplícala con: background-size: 100% 100%; background-repeat: no-repeat;
+  sobre un contenedor con aspect-ratio: 8.5/11.
+  No uses "cover" (recorta) ni "contain" (deja franjas).
+- Elimina cualquier logo, sello, monograma u objeto adicional dibujado por encima:
+  la única marca es la que ya trae la imagen de fondo.
+
+====================================================================
+2. MÁRGENES DEL TEXTO
+====================================================================
+- El bloque de texto NO debe empezar pegado al borde ni encima del logo de la imagen.
+- Colócalo en un contenedor posicionado con:
+  left: 32%; right: 9%; top: 9%; bottom: 8%;
+  (ajusta el "left" hasta que el texto arranque justo a la derecha del logo del membrete).
+- El texto va justificado (text-align: justify).
+
+====================================================================
+3. TÍTULO GENERAL DEL CONTRATO
+====================================================================
+- Debe decir el nombre del contrato (p. ej. "Contrato de cohosting") en la fuente
+  serif de la marca (Valky), ALINEADO A LA DERECHA, solo en la primera página,
+  con margen inferior antes de que empiece el cuerpo.
+
+====================================================================
+4. TÍTULOS DE CLÁUSULA — dos problemas
+====================================================================
+a) NO se deben separar del texto: un encabezado de cláusula nunca puede quedar solo
+   al final de una página con su primer párrafo en la siguiente. Al paginar, si un
+   encabezado no cabe junto con su primer párrafo, empújalos juntos a la página
+   siguiente (calcula el alto del encabezado + el del bloque que le sigue antes de
+   decidir el corte). Ver sección 5.
+
+b) FORMATO:
+   - El ordinal ("Primera.", "Segunda.", "Tercera."…) va en Valky BOLD en ITÁLICA.
+   - El resto del título de la cláusula ("Del Inmueble.", "Del Acuerdo."…) va en
+     Montserrat BOLD.
+   - El párrafo del cuerpo va en Montserrat regular.
+
+====================================================================
+5. PAGINACIÓN POR BLOQUES ESTRUCTURADOS (no por caracteres de texto plano)
+====================================================================
+No pagines partiendo un string largo. Primero convierte el contrato en una lista
+ordenada de BLOQUES, cada uno con un tipo y un largo estimado:
+
+  - intro : párrafo de comparecencia inicial (solo página 1).
+  - head  : encabezado de cláusula  { ord: "Primera", label: "Del Inmueble." }
+  - p     : un párrafo del cuerpo.
+  - li    : un ítem de lista numerada (dentro de una cláusula con incisos).
+
+Ejemplo de armado:
+
+  const blocks = [];
+  if (intro) blocks.push({ tipo: "intro", texto: intro, len: intro.length });
+  clausulas.forEach(c => {
+    blocks.push({ tipo: "head", ord: c.ord, label: c.label, len: 120 });
+    c.blocks.forEach(b => {
+      if (b.t === "p")  blocks.push({ tipo: "p",  texto: b.text, len: b.text.length });
+      if (b.t === "ol") b.items.forEach((it, i) =>
+        blocks.push({ tipo: "li", texto: (i + 1) + ". " + it, len: it.length + 4 }));
+    });
+  });
+
+Luego reparte los bloques en páginas por ALTO ACUMULADO (usa "len" como proxy del
+alto; ~1650 por página tamaño carta con estos márgenes — ajústalo a tu tipografía).
+REGLA ANTI-HUÉRFANO: un "head" cuenta también el largo del bloque siguiente al
+decidir si cabe, para que nunca quede un encabezado solo al final de la página:
+
+  const pages = []; let cur = []; let acc = 0;
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    const alto = b.tipo === "head"
+      ? b.len + (blocks[i + 1] ? blocks[i + 1].len : 0)   // encabezado + su primer párrafo
+      : b.len;
+    if (acc + alto > 1650 && cur.length) { pages.push(cur); cur = []; acc = 0; }
+    cur.push(b); acc += b.len;
+  }
+  if (cur.length) pages.push(cur);
+
+Al renderizar cada página, recorre sus bloques y aplica el formato de la sección 4:
+  - head : ordinal en Valky bold itálica + label en Montserrat bold.
+  - p / li : Montserrat regular, justificado (el "li" con sangría izquierda pequeña,
+    p. ej. padding-left: 3%).
+La imagen de fondo membretada se repite en CADA página con background-size: 100% 100%.
+
+====================================================================
+NOTA TÉCNICA (React/JSX)
+====================================================================
+- Para poblar <textarea> usa el atributo value=, NUNCA pases el texto como hijo
+  (<textarea>{texto}</textarea>) — eso renderiza "[object Object]" cuando el valor
+  es un objeto.
+- Igual con listas de cláusulas: al construir el string editable, mapea cada bloque
+  a su .text (o une los .items si es lista) y FILTRA lo que no sea string antes de
+  hacer join. Ejemplo:
+
+    (clausula.blocks || [])
+      .map(b => (b && b.t === "ol")
+        ? b.items.map((it, i) => (i + 1) + ". " + it).join(" ")
+        : (b && typeof b.text === "string" ? b.text : (typeof b === "string" ? b : "")))
+      .filter(Boolean)
+      .join("\n\n");
