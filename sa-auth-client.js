@@ -26,6 +26,8 @@
     login:              function (email, password) { return call('login', { email: email, password: password }); },
     setInitialPassword: function (email, next)     { return call('setInitialPassword', { email: email, next: next }); },
     profile:            function (email)           { return call('profile', { email: email }); },
+    /* Todos los usuarios del perfil unificado (hoja «Control de usuarios») con su rol en Grow. */
+    users:              function ()                { return call('users', { app: SAAuth.APP }); },
     setPassword:        function (email, cur, next){ return call('setPassword', { email: email, current: cur, next: next }); },
     setEmail:           function (email, next)     { return call('setEmail', { email: email, next: next }); },
     setPhoto:           function (email, url)      { return call('setPhoto', { email: email, url: url }); },
