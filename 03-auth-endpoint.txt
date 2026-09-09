@@ -1,0 +1,244 @@
+/**********************************************************************
+ * SPACIO AM · CONTROL DE USUARIOS UNIFICADO
+ * 03 · AUTH — endpoint compartido (login + perfil + escritura + equipo)
+ * --------------------------------------------------------------------
+ * Este es el ÚNICO punto por el que las 4 apps hablan con la hoja.
+ * Pégalo en el Apps Script de la hoja «Control de usuarios» y publícalo
+ * como App Web:  Implementar › Nueva implementación › App web
+ *   · Ejecutar como: **yo (jforce15@gmail.com)**
+ *   · Con acceso a:  Cualquier usuario
+ * Copia la URL /exec resultante: es SA_AUTH_URL para las apps.
+ *
+ * Protocolo: POST con JSON { action, token, ... }.
+ * Token compartido para evitar llamadas anónimas de terceros.
+ *
+ * Acciones:
+ *   login        { email, password }        -> perfil + apps permitidas
+ *   profile      { email }                   -> perfil (sin hash)
+ *   users        { app }                     -> equipo con permiso en esa app (Grow lo usa como única fuente)
+ *   owners       { }                         -> propietarios/socios de TODA la hoja (es_dueno o es_socio),
+ *                                               sin importar en qué app tengan permiso
+ *   addUser      { by, email, nombre, app, rol } -> crea (o da permiso a) un usuario desde la app; solo un
+ *                                               Administrador principal de esa app puede hacerlo
+ *   setInitialPassword { email, next }       -> fija contraseña en el primer ingreso
+ *   setPassword  { email, current, next }    -> cambia contraseña (todas las apps)
+ *   setEmail     { email, next }             -> cambia correo
+ *   setPhoto     { email, url }              -> guarda link de foto
+ *
+ * La respuesta SIEMPRE incluye { ok:true/false }. Nunca devuelve el hash.
+ **********************************************************************/
+
+var AUTH_TOKEN = 'SpacioAM2026!';      // compartido con las 4 apps
+var SHEET_TAB  = 'Usuarios';
+var APP_KEYS   = ['mi','epi','grow','hola'];
+// ID de la hoja «Control de usuarios» (proyecto independiente → openById).
+var CONTROL_SHEET_ID = '1r5LYE-YZw2_1JCt6919jZlcBf7AkHk5Hf2eIsP_wX2U';
+
+function doPost(e){
+  var out = _handle(e);
+  return ContentService.createTextOutput(JSON.stringify(out))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+// GET solo para prueba rápida de que la implementación responde
+function doGet(){
+  return ContentService.createTextOutput(JSON.stringify({ok:true, service:'sa-auth'}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function _handle(e){
+  try{
+    var body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    if(body.token !== AUTH_TOKEN) return {ok:false, error:'token'};
+    switch(body.action){
+      case 'login':       return _login(body.email, body.password);
+      case 'profile':     return _profile(body.email);
+      case 'users':       return _users(body.app);
+      case 'owners':      return _owners();
+      case 'addUser':     return _addUser(body.by, body.email, body.nombre, body.app, body.rol);
+      case 'setInitialPassword': return _setInitialPassword(body.email, body.next);
+      case 'setPassword': return _setPassword(body.email, body.current, body.next);
+      case 'setEmail':    return _setEmail(body.email, body.next);
+      case 'setPhoto':    return _setPhoto(body.email, body.url);
+      default:            return {ok:false, error:'action'};
+    }
+  }catch(err){ return {ok:false, error:String(err)}; }
+}
+
+// ---- lectura ----
+function _sheet(){ return SpreadsheetApp.openById(CONTROL_SHEET_ID).getSheetByName(SHEET_TAB); }
+function _all(){
+  var sh=_sheet(), data=sh.getDataRange().getValues(), head=data[0], H={};
+  head.forEach(function(c,i){ H[String(c).trim()]=i; });
+  return {sh:sh, data:data, H:H};
+}
+function _findRow(email){
+  var d=_all(), key=String(email||'').toLowerCase();
+  for(var i=1;i<d.data.length;i++){
+    if(String(d.data[i][d.H.email]).toLowerCase()===key) return {i:i, d:d};
+  }
+  return null;
+}
+function _publicProfile(row, H){
+  var apps={};
+  APP_KEYS.forEach(function(a){ var v=row[H['perm_'+a]]; if(v) apps[a]=v; });
+  return {
+    user_id: row[H.user_id], nombre: row[H.nombre], email: row[H.email],
+    primer_nombre: row[H.primer_nombre] || "", segundo_nombre: row[H.segundo_nombre] || "",
+    primer_apellido: row[H.primer_apellido] || "", segundo_apellido: row[H.segundo_apellido] || "",
+    email_alterno: row[H.email_alterno]||'', foto: row[H.foto]||'',
+    estado: row[H.estado], es_dueno: row[H.es_dueno]==='sí',
+    es_socio: row[H.es_socio]==='sí', apps: apps
+  };
+}
+
+function _login(email, password){
+  var f=_findRow(email); if(!f) return {ok:false, error:'no_user'};
+  var row=f.d.data[f.i], H=f.d.H;
+  if(row[H.estado]==='suspendido') return {ok:false, error:'suspended'};
+  var hash=String(row[H.password_hash]||'');
+  // password_hash vacío → primer ingreso: la app debe pedir crear contraseña
+  if(!hash) return {ok:false, error:'needs_password', profile:_publicProfile(row, H)};
+  if(hash!==sha256(password)) return {ok:false, error:'bad_pass'};
+  return {ok:true, profile:_publicProfile(row, H)};
+}
+function _profile(email){
+  var f=_findRow(email); if(!f) return {ok:false, error:'no_user'};
+  return {ok:true, profile:_publicProfile(f.d.data[f.i], f.d.H)};
+}
+
+// Lista de usuarios con permiso en una app (por defecto grow). Es la única
+// fuente del equipo para Grow: miembros de proyecto, asignación de visitas,
+// responsables y menciones. Nunca devuelve el hash. Omite suspendidos.
+function _users(app){
+  app = String(app || 'grow').toLowerCase();
+  if (APP_KEYS.indexOf(app) < 0) return {ok:false, error:'app'};
+  var d = _all(), users = [];
+  for (var i = 1; i < d.data.length; i++){
+    var row = d.data[i], H = d.H;
+    var email = String(row[H.email] || '').trim().toLowerCase();
+    if (!email) continue;
+    if (row[H.estado] === 'suspendido') continue;
+    var rol = String(row[H['perm_' + app]] || '').trim();
+    if (!rol) continue;                       // sin acceso a esta app
+    var p = _publicProfile(row, H);
+    users.push({ user_id: p.user_id, email: email, nombre: p.nombre, foto: p.foto, es_dueno: p.es_dueno, rol: rol, apps: p.apps });
+  }
+  return {ok:true, users: users};
+}
+
+// Alta de usuario desde una app (Grow: «Equipo del proyecto»). Si el correo ya
+// existe solo se le da/actualiza el permiso en esa app; si no, se crea la fila con
+// estado activo y sin contraseña (la fija en su primer ingreso). Quien lo pide
+// debe ser Administrador principal de la misma app.
+function _addUser(by, email, nombre, app, rol){
+  app = String(app || 'grow').toLowerCase();
+  if (APP_KEYS.indexOf(app) < 0) return {ok:false, error:'app'};
+  rol = String(rol || '').trim();
+  if (!rol) return {ok:false, error:'rol'};
+  // La columna perm_* tiene validación de datos con códigos fijos; las etiquetas legibles se traducen.
+  var ROL_MAP = { 'administrador principal':'admin_principal', 'admin principal':'admin_principal', 'admin. principal':'admin_principal', 'principal':'admin_principal',
+                  'administrador secundario':'admin_secundario', 'admin secundario':'admin_secundario', 'admin. secundario':'admin_secundario', 'secundario':'admin_secundario',
+                  'técnico':'personal_campo', 'tecnico':'personal_campo', 'personal de campo':'personal_campo',
+                  'compras y montaje':'compras_montaje', 'compras':'compras_montaje', 'dueño':'dueno', 'propietario':'dueno' };
+  var codigo = ROL_MAP[rol.toLowerCase()] || rol.toLowerCase().replace(/\s+/g, '_');
+  var ok = ['admin_principal','admin_secundario','personal_campo','compras_montaje','dueno'];
+  if (ok.indexOf(codigo) < 0) return {ok:false, error:'rol'};
+  rol = codigo;
+  var solicitante = _findRow(by);
+  if (!solicitante) return {ok:false, error:'no_user'};
+  var permBy = String(solicitante.d.data[solicitante.i][solicitante.d.H['perm_' + app]] || '');
+  if (!/principal/i.test(permBy)) return {ok:false, error:'forbidden'};
+  email = String(email || '').trim().toLowerCase();
+  if (email.indexOf('@') < 0) return {ok:false, error:'bad_email'};
+  var f = _findRow(email), sh, H, i;
+  if (f){
+    // Ya existe: solo se da/actualiza el permiso. El nombre se conserva tal como está.
+    sh = f.d.sh; H = f.d.H; i = f.i;
+    var prev = String(f.d.data[i][H['perm_' + app]] || '');
+    // Un acceso de equipo (principal/secundario/campo/compras) no se degrada a 'dueno'.
+    if (!(rol === 'dueno' && prev && prev !== 'dueno')) sh.getRange(i+1, H['perm_' + app]+1).setValue(rol);
+    if (rol === 'dueno' && String(f.d.data[i][H.es_dueno] || '') !== 'sí') sh.getRange(i+1, H.es_dueno+1).setValue('sí');
+    if (nombre && !String(f.d.data[i][H.nombre] || '').trim()) sh.getRange(i+1, H.nombre+1).setValue(String(nombre).trim());
+    if (String(f.d.data[i][H.estado] || '') === 'suspendido') sh.getRange(i+1, H.estado+1).setValue('activo');
+    _touch(sh, H, i);
+    return {ok:true, created:false, kept: (rol === 'dueno' && prev && prev !== 'dueno') ? prev : '', profile:_publicProfile(sh.getRange(i+1,1,1,sh.getLastColumn()).getValues()[0], H)};
+  }
+  if (!String(nombre || '').trim()) return {ok:false, error:'needs_name'};
+  var d = _all(); sh = d.sh; H = d.H;
+  nombre = String(nombre || '').trim() || email.split('@')[0];
+  var partes = nombre.split(/\s+/);
+  var row = [];
+  for (var k = 0; k < sh.getLastColumn(); k++) row.push('');
+  var set = function(col, v){ if (H[col] != null) row[H[col]] = v; };
+  set('user_id', 'U-' + Utilities.getUuid().slice(0, 8).toUpperCase());
+  set('nombre', nombre); set('email', email);
+  set('primer_nombre', partes[0] || ''); set('primer_apellido', partes.length > 1 ? partes[partes.length - 1] : '');
+  set('estado', 'activo'); set('es_dueno', rol === 'dueno' ? 'sí' : 'no'); set('es_socio', 'no');
+  set('perm_' + app, rol); set('password_hash', ''); set('actualizado', new Date());
+  sh.appendRow(row);
+  return {ok:true, created:true, profile:_publicProfile(row, H)};
+}
+
+// Propietarios y socios de toda la hoja. A diferencia de _users, NO filtra por permiso
+// de app: un dueño suele tener acceso solo al dashboard (perm_mi) y aun así debe poder
+// vincularse a un proyecto en Grow.
+function _owners(){
+  var d = _all(), out = [];
+  for (var i = 1; i < d.data.length; i++){
+    var row = d.data[i], H = d.H;
+    var email = String(row[H.email] || '').trim().toLowerCase();
+    if (!email) continue;
+    if (row[H.estado] === 'suspendido') continue;
+    if (row[H.es_dueno] !== 'sí' && row[H.es_socio] !== 'sí') continue;
+    var p = _publicProfile(row, H);
+    out.push({ user_id: p.user_id, email: email, nombre: p.nombre, primer_nombre: p.primer_nombre, primer_apellido: p.primer_apellido,
+               foto: p.foto, es_dueno: p.es_dueno, es_socio: p.es_socio, email_alterno: p.email_alterno });
+  }
+  return {ok:true, owners: out};
+}
+
+// ---- escritura (aplica a TODAS las apps a la vez) ----
+function _touch(sh, H, i){ sh.getRange(i+1, H.actualizado+1).setValue(new Date()); }
+
+// Primer ingreso: fija la contraseña SOLO si el hash está vacío.
+function _setInitialPassword(email, next){
+  var f=_findRow(email); if(!f) return {ok:false, error:'no_user'};
+  var row=f.d.data[f.i], H=f.d.H, sh=f.d.sh;
+  if(String(row[H.password_hash]||'')) return {ok:false, error:'already_set'};
+  if(!next || String(next).length<6) return {ok:false, error:'weak'};
+  sh.getRange(f.i+1, H.password_hash+1).setValue(sha256(next));
+  _touch(sh,H,f.i);
+  return {ok:true, profile:_publicProfile(row, H)};
+}
+
+function _setPassword(email, current, next){
+  var f=_findRow(email); if(!f) return {ok:false, error:'no_user'};
+  var row=f.d.data[f.i], H=f.d.H, sh=f.d.sh;
+  if(String(row[H.password_hash]||'') !== sha256(current)) return {ok:false, error:'bad_current'};
+  if(!next || String(next).length<6) return {ok:false, error:'weak'};
+  sh.getRange(f.i+1, H.password_hash+1).setValue(sha256(next));
+  _touch(sh,H,f.i);
+  return {ok:true};
+}
+function _setEmail(email, next){
+  var f=_findRow(email); if(!f) return {ok:false, error:'no_user'};
+  if(!next || String(next).indexOf('@')<0) return {ok:false, error:'bad_email'};
+  if(_findRow(next)) return {ok:false, error:'email_taken'};
+  var sh=f.d.sh, H=f.d.H;
+  sh.getRange(f.i+1, H.email+1).setValue(String(next).trim());
+  _touch(sh,H,f.i);
+  return {ok:true};
+}
+function _setPhoto(email, url){
+  var f=_findRow(email); if(!f) return {ok:false, error:'no_user'};
+  var sh=f.d.sh, H=f.d.H;
+  sh.getRange(f.i+1, H.foto+1).setValue(String(url||'').trim());
+  _touch(sh,H,f.i);
+  return {ok:true};
+}
+
+// mismo hash que el importador
+function sha256(txt){
+  var raw=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(txt), Utilities.Charset.UTF_8);
+  return raw.map(function(b){ return ('0'+(b&0xFF).toString(16)).slice(-2); }).join('');
+}

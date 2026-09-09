@@ -28,6 +28,8 @@
     profile:            function (email)           { return call('profile', { email: email }); },
     /* Todos los usuarios del perfil unificado (hoja «Control de usuarios») con su rol en Grow. */
     users:              function ()                { return call('users', { app: SAAuth.APP }); },
+    /* Propietarios y socios de toda la hoja, sin filtrar por app. */
+    owners:             function ()                { return call('owners', {}); },
     /* Alta de usuario desde la app: solo un Administrador principal (by) puede hacerlo. */
     addUser:            function (by, email, nombre, rol) { return call('addUser', { by: by, email: email, nombre: nombre, rol: rol, app: SAAuth.APP }); },
     setPassword:        function (email, cur, next){ return call('setPassword', { email: email, current: cur, next: next }); },
