@@ -93,6 +93,21 @@ export const DUENOS = [
 
 export const CHECKLIST = ["Internet", "Limpieza inicial", "Insumos iniciales", "Cerradura inteligente", "Calentador", "Electricidad", "Tarjetas de acceso", "Llave para locker"];
 
+// Tres checklists independientes. Cada uno tiene su propio maestro y su propio avance por apartamento.
+export const CHECKLIST_PRE = ["Internet", "Limpieza inicial", "Insumos iniciales", "Cerradura inteligente", "Calentador", "Electricidad", "Tarjetas de acceso", "Llave para locker"];
+
+export const CHECKLIST_FOTOS = ["Montaje y styling terminado", "Sesión agendada con el fotógrafo", "Tomas por ambiente (sala, comedor, cocina, dormitorios, baños)", "Amenidades del edificio", "Toma preliminar para pre-lanzamiento", "Selección y edición entregadas", "Fotos cargadas a la carpeta del proyecto"];
+
+export const CHECKLIST_LANZ = ["Fotos finales aprobadas", "Descripción y título del anuncio", "Tarifas y calendario cargados", "Reglas de la casa y políticas", "Guía del huésped y manual de acceso", "Publicado en Airbnb", "Publicado en Booking", "Limpieza previa a la primera reserva"];
+
+// Acciones que un administrador puede asignar puntualmente a un técnico.
+export const TAREAS_TECNICO = [
+  { id: "visita", label: "Formulario de visita", desc: "Levantamiento en sitio: fotos, inventario y accesos." },
+  { id: "fotos", label: "Fotos pro", desc: "Sesión fotográfica del apartamento ya montado." },
+  { id: "pre", label: "Checklist pre-lanzamiento", desc: "Servicios, accesos e insumos listos antes de publicar." },
+  { id: "lanz", label: "Checklist de lanzamiento", desc: "Anuncio, tarifas y publicación en plataformas." }
+];
+
 // Revisión post-lanzamiento: checklists por hito. Los items son agregables globalmente.
 export const REVISION_HITOS = [
   { id: "2sem", label: "2 semanas", items: ["Primeras reseñas monitoreadas", "Ajuste de precio inicial", "Revisar reporte de limpieza"] },
@@ -208,6 +223,8 @@ export const PROYECTOS = [
       { num: "2019184357", fecha: "2026-07-02", monto: 3899.0, desc: "Sofá", proveedor: "SUO", tipo: "pdf", entrega: "programada 2026-07-30", items: ["Sofá"] }
     ],
     checklist: ["Internet", "Limpieza inicial", "Cerradura inteligente", "Electricidad"],
+    checklistFotos: ["Montaje y styling terminado"], checklistLanz: [],
+    asignaciones: { pre: "Gabriel Asturias", fotos: "Gabriel Asturias" },
     gantt: [
       { hito: "Depósito recibido", fecha: "2026-06-10", done: true },
       { hito: "Compras fase 1", fecha: "2026-06-15 → 2026-07-20", done: true },
@@ -328,6 +345,8 @@ export const PROYECTOS = [
       { num: "MO-1002", fecha: "2026-07-10", monto: 38900, desc: "Mobiliario lote fase 2 (parcial)", proveedor: "CEMACO", tipo: "pdf", entrega: "programada 2026-08-30", items: [] }
     ],
     checklist: ["Internet", "Limpieza inicial", "Cerradura inteligente", "Electricidad", "Tarjetas de acceso"],
+    checklistFotos: ["Montaje y styling terminado", "Sesión agendada con el fotógrafo"], checklistLanz: ["Fotos finales aprobadas"],
+    asignaciones: { lanz: "Gabriel Asturias" },
     gantt: [
       { hito: "Fase 1 lanzada (12 unidades)", fecha: "2026-07-15", done: true },
       { hito: "Fase 2 en ejecución", fecha: "2026-08-01 → 2026-09-30", done: false }
@@ -354,5 +373,5 @@ export const RECEPCIONES = [
 ];
 
 if (typeof window !== "undefined") {
-  window.SPACIO_DATOS = { ETAPAS, CATALOGO, PROVEEDORES, DUENOS, CHECKLIST, REVISION_HITOS, CORREO_TEMPLATES, CORREOS, EQUIPO, TAREAS_DEFAULT, PROYECTOS, CUENTAS, CONTACTOS, RECEPCIONES, INSUMOS_DEFAULT };
+  window.SPACIO_DATOS = { ETAPAS, CATALOGO, PROVEEDORES, DUENOS, CHECKLIST, CHECKLIST_PRE, CHECKLIST_FOTOS, CHECKLIST_LANZ, TAREAS_TECNICO, REVISION_HITOS, CORREO_TEMPLATES, CORREOS, EQUIPO, TAREAS_DEFAULT, PROYECTOS, CUENTAS, CONTACTOS, RECEPCIONES, INSUMOS_DEFAULT };
 }
