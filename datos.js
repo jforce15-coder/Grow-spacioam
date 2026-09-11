@@ -87,7 +87,8 @@ export const DUENOS = [
   { id: "ana-b", nombre: "Ana Barrios", email: "ana@bayit151.com", props: ["p2"] },
   { id: "jose-c", nombre: "José Calderón", email: "josecalderon@ufm.edu", props: ["p3"] },
   { id: "vilma-t", nombre: "Vilma Torres", email: "vilmatorres.p84@gmail.com", props: ["p5"] },
-  { id: "roberto-p", nombre: "Roberto Paiz", email: "rpaiz@gmail.com", props: ["p7"] }
+  { id: "roberto-p", nombre: "Roberto Paiz", email: "rpaiz@gmail.com", props: ["p7"] },
+  { id: "monaco-dev", nombre: "Desarrolladora Mónaco", email: "proyectos@edificiomonaco.com", props: ["p8"] }
 ];
 
 export const CHECKLIST = ["Internet", "Limpieza inicial", "Insumos iniciales", "Cerradura inteligente", "Calentador", "Electricidad", "Tarjetas de acceso", "Llave para locker"];
@@ -107,6 +108,7 @@ export const CORREO_TEMPLATES = [
   { id: "recordatorio", nombre: "Recordatorio de presupuesto", asunto: "Tu propuesta te espera", cta: "Revisar presupuesto", cuerpo: "Hola {nombre}, dejamos lista la propuesta para {propiedad}. Cuando gustes la revisamos juntos y resolvemos cualquier duda." },
   { id: "reunion", nombre: "Invitación a reunión", asunto: "Nos vemos pronto", cta: "Unirme a la reunión", cuerpo: "Hola {nombre}, te esperamos en la reunión de {propiedad}. Aquí está el enlace de Google Meet; si necesitas reprogramar, avísanos." },
   { id: "deposito", nombre: "Datos fiscales / depósito", asunto: "Últimos datos para arrancar", cta: "Enviar mis datos", cuerpo: "Hola {nombre}, recibimos tu depósito para {propiedad}. Para tu factura necesitamos tus datos fiscales (NIT, régimen). ¡Ya casi arrancamos!" },
+  { id: "suenos", nombre: "Cuéntanos cómo lo sueñas", asunto: "Antes de diseñar {propiedad}, cuéntanos cómo lo sueñas", cta: "Contarles mi visión", hero: "assets/brand/correo-suenas.png", cuerpo: "Hola {nombre}, antes de dibujar un solo mueble de {propiedad} queremos escucharte. ¿Hay un color, una música, un lugar que quieras que este espacio respire? ¿Qué tipo de huésped te gustaría recibir? En tu portal encontrarás un espacio para escribirlo y subir fotos que te inspiren. Todo lo que nos cuentes se convierte en tu propuesta de diseño." },
   { id: "lanzamiento", nombre: "Lanzamiento", asunto: "{propiedad} ya recibe huéspedes", cta: "Ver el anuncio", cuerpo: "¡{nombre}, lo logramos! {propiedad} ya está publicada y lista para recibir a sus primeros huéspedes. Gracias por confiar en Spacio AM." }
 ];
 
@@ -119,7 +121,6 @@ export const CORREOS = [
 export const EQUIPO = [
   { id: "alejandra", nombre: "Alejandra Molina", rol: "Administrador principal", inicial: "AM", color: "#3B6691", foto: null },
   { id: "gabriel", nombre: "Gabriel Asturias", rol: "Administrador secundario", inicial: "GA", color: "#3d6b52", foto: null },
-  { id: "juan", nombre: "Juan Ovalle", rol: "Personal de campo", inicial: "JO", color: "#9a5020", foto: null },
   { id: "andrea", nombre: "Andrea Súchite", rol: "Compras y montaje", inicial: "AS", color: "#8a4b8f", foto: null }
 ];
 
@@ -128,7 +129,7 @@ export const TAREAS_DEFAULT = [
   { etapa: "reunion", nombre: "Agendar reunión virtual", resp: "alejandra", equipo: false, dias: 2 },
   { etapa: "reunion", nombre: "Enviar minuta / transcripción", resp: "alejandra", equipo: false, dias: 1 },
   { etapa: "visita", nombre: "Asignar y coordinar visita", resp: "gabriel", equipo: false, dias: 2 },
-  { etapa: "visita", nombre: "Levantamiento en sitio + fotos", resp: "juan", equipo: true, dias: 1, dep: "Asignar y coordinar visita" },
+  { etapa: "visita", nombre: "Levantamiento en sitio + fotos", resp: "gabriel", equipo: true, dias: 1, dep: "Asignar y coordinar visita" },
   { etapa: "anteproyecto", nombre: "Generar renders por espacio", resp: "andrea", equipo: true, dias: 4 },
   { etapa: "anteproyecto", nombre: "Enviar propuesta al propietario", resp: "alejandra", equipo: false, dias: 1, dep: "Generar renders por espacio" },
   { etapa: "presupuesto", nombre: "Armar presupuesto base", resp: "andrea", equipo: false, dias: 2 },
@@ -137,8 +138,24 @@ export const TAREAS_DEFAULT = [
   { etapa: "ejecucion", nombre: "Compras de mobiliario", resp: "andrea", equipo: true, dias: 20 },
   { etapa: "ejecucion", nombre: "Coordinar entregas e instalación", resp: "gabriel", equipo: true, dias: 14, dep: "Compras de mobiliario" },
   { etapa: "fotos", nombre: "Montaje final y styling", resp: "andrea", equipo: true, dias: 3 },
-  { etapa: "fotos", nombre: "Fotografía profesional", resp: "juan", equipo: false, dias: 1, dep: "Montaje final y styling" },
+  { etapa: "fotos", nombre: "Fotografía profesional", resp: "gabriel", equipo: false, dias: 1, dep: "Montaje final y styling" },
   { etapa: "lanzamiento", nombre: "Publicar en Airbnb y Booking", resp: "alejandra", equipo: false, dias: 2 }
+];
+
+// Guía de insumos iniciales — lista base editable por el administrador (amenidades de arranque).
+export const INSUMOS_DEFAULT = [
+  { cat: "Baño", item: "Papel higiénico (paquete)", precio: 45, cant: 2 },
+  { cat: "Baño", item: "Jabón de manos", precio: 25, cant: 3 },
+  { cat: "Baño", item: "Shampoo y acondicionador", precio: 60, cant: 2 },
+  { cat: "Baño", item: "Toallas de cortesía", precio: 40, cant: 4 },
+  { cat: "Cocina", item: "Café y té de bienvenida", precio: 80, cant: 1 },
+  { cat: "Cocina", item: "Detergente y esponja", precio: 35, cant: 1 },
+  { cat: "Cocina", item: "Bolsas de basura", precio: 30, cant: 2 },
+  { cat: "Cocina", item: "Sal, azúcar y aceite básicos", precio: 55, cant: 1 },
+  { cat: "Limpieza", item: "Desinfectante multiusos", precio: 40, cant: 2 },
+  { cat: "Limpieza", item: "Trapeador y escoba", precio: 90, cant: 1 },
+  { cat: "Dormitorio", item: "Set de sábanas extra", precio: 180, cant: 2 },
+  { cat: "Dormitorio", item: "Agua de bienvenida", precio: 20, cant: 4 }
 ];
 
 const PRES_RUE = [
@@ -204,7 +221,7 @@ export const PROYECTOS = [
     duenoId: "ana-b", etapa: "presupuesto", farol: "attention", amueblado: true, conAnteproyecto: true,
     creado: "2026-07-02", equipado: "Sin equipar", lineaBlanca: false, tipo: "Edificio",
     reunion: { fecha: "2026-07-09 15:00", meet: "meet.google.com/spa-cioa-fia", transcripcion: "Primera propiedad de la dueña en renta corta. Pide presupuesto conservador; interesada en huéspedes corporativos. Se explicó fee de mobiliario 10% y costo de anteproyecto." },
-    visita: { fecha: "2026-07-16", asignadoA: "Juan Ovalle", completa: true, parqueo: "Sin parqueo propio · parqueo de pago en sótano", ingreso: "Chapa digital por instalar · buzón en recepción", equipado: "Equipamiento completo, sin electrodomésticos", detalles: "Requiere torre de lavado", lavado: "En el apartamento", amenidades: "Lobby, área de coworking", parqueoPago: "Sí", fotos: 18 },
+    visita: { fecha: "2026-07-16", asignadoA: "Gabriel Asturias", completa: true, parqueo: "Sin parqueo propio · parqueo de pago en sótano", ingreso: "Chapa digital por instalar · buzón en recepción", equipado: "Equipamiento completo, sin electrodomésticos", detalles: "Requiere torre de lavado", lavado: "En el apartamento", amenidades: "Lobby, área de coworking", parqueoPago: "Sí", fotos: 18 },
     anteproyecto: { visibleDueno: true, costo: 1500, espacios: [
       { nombre: "Sala-comedor", opciones: 4, favorita: 3, comentario: "La 3 es perfecta para corporativos. ¿El wall panel sube mucho el presupuesto?" },
       { nombre: "Dormitorio", opciones: 4, favorita: null, comentario: null }
@@ -245,7 +262,7 @@ export const PROYECTOS = [
     duenoId: "marcel-r", etapa: "lanzamiento", farol: "success", amueblado: true, conAnteproyecto: true,
     creado: "2026-03-02", equipado: "Sin equipar", lineaBlanca: false, tipo: "Edificio",
     reunion: { fecha: "2026-03-10 09:00", meet: "meet.google.com/spa-cioa-mod", transcripcion: "Segunda propiedad de Marcel con nosotros. Decoración con temática de juegos tradicionales de Guatemala." },
-    visita: { fecha: "2026-03-18", asignadoA: "Juan Ovalle", completa: true, fotos: 24 },
+    visita: { fecha: "2026-03-18", asignadoA: "Gabriel Asturias", completa: true, fotos: 24 },
     anteproyecto: { visibleDueno: true, costo: 2000, espacios: [{ nombre: "Sala", opciones: 4, favorita: 4, comentario: "¡Los cuadros de barrilete y trompo quedaron increíbles!" }] },
     presupuesto: { estado: "aprobado", items: PRES_RUE.slice(0, 18), cobraMobiliario: true, feePct: 10, cobraDiseno: true, disenoQ: 2000, fotosProUsd: 200, depositos: [{ fecha: "2026-04-02", monto: 48000, comprobante: "deposito-modra.pdf", verificado: true }] },
     contrato: { estado: "firmado", fechaFirma: "2026-03-28", firmantes: [{ nombre: "Marcel Reiche", rol: "Propietario", firmado: true }, { nombre: "Spacio AM", rol: "Administrador", firmado: true }], pdf: "contrato-modra1108.pdf" },
@@ -277,6 +294,44 @@ export const PROYECTOS = [
     contrato: { estado: "firmado", fechaFirma: "2025-12-02", firmantes: [{ nombre: "Roberto Paiz", rol: "Propietario", firmado: true }, { nombre: "Spacio AM", rol: "Administrador", firmado: true }], pdf: "contrato-zima502.pdf" },
     facturas: [], checklist: ["Internet", "Limpieza inicial", "Insumos iniciales", "Cerradura inteligente", "Calentador", "Electricidad", "Tarjetas de acceso", "Llave para locker"],
     gantt: [{ hito: "Publicado en Airbnb", fecha: "2026-01-08", done: true }, { hito: "Revisión a 3 meses", fecha: "2026-04-08", done: true }]
+  },
+  {
+    id: "p8", nombre: "Mónaco", edificio: "Edificio Mónaco", apto: "30 unidades", zona: "Zona 14", hab: 1, banos: 1,
+    duenoId: "monaco-dev", etapa: "ejecucion", farol: "info", amueblado: true, conAnteproyecto: true,
+    creado: "2026-05-01", equipado: "Sin equipar", lineaBlanca: false, tipo: "Edificio",
+    esEdificio: true, totalUnidades: 30,
+    reunion: { fecha: "2026-05-06 10:00", meet: "meet.google.com/spa-cioa-mon", transcripcion: "Desarrolladora entrega 30 apartamentos tipo estudio, prácticamente idénticos. Se trabaja por fases; el entregable es múltiples anuncios, uno por unidad. Fotos pro por unidad; ejecución de presupuesto igual en esencia para todas." },
+    visita: { fecha: "2026-05-12", asignadoA: "Gabriel Asturias", completa: true, fotos: 24 },
+    anteproyectos: [
+      { fase: "Fase 1", visibleDueno: true, costo: 3500, espacios: [{ nombre: "Estudio tipo A", opciones: 4, favorita: 3, comentario: "Aprobado para las 12 unidades de la fase 1." }] },
+      { fase: "Fase 2", visibleDueno: true, costo: 3500, espacios: [{ nombre: "Estudio tipo A (revisión)", opciones: 3, favorita: 2, comentario: "Mismo concepto, ajustes menores de textiles." }] }
+    ],
+    fases: [
+      { nombre: "Fase 1", cerrada: true, unidades: 12, presupuestos: [
+        { id: "mo-f1-p1", nombre: "Presupuesto base F1", estado: "cerrado", porUnidad: true, items: PRES_RUE }
+      ] },
+      { nombre: "Fase 2", cerrada: false, unidades: 18, presupuestos: [
+        { id: "mo-f2-p1", nombre: "Presupuesto base F2", estado: "aprobado", porUnidad: true, items: PRES_RUE },
+        { id: "mo-f2-p2", nombre: "Adicional amenidades", estado: "enviado", porUnidad: false, items: PRES_RUE.slice(4, 12) }
+      ] }
+    ],
+    unidades: (function () {
+      const arr = [];
+      for (let i = 0; i < 12; i++) { const n = 101 + i; arr.push({ apto: String(n), fase: "Fase 1", etapa: "lanzamiento", fotosPro: true, link: "https://airbnb.com/h/monaco-" + n }); }
+      for (let i = 0; i < 18; i++) { const n = 201 + i; const et = i < 6 ? "fotos" : i < 13 ? "ejecucion" : "presupuesto"; arr.push({ apto: String(n), fase: "Fase 2", etapa: et, fotosPro: i < 6, link: "" }); }
+      return arr;
+    })(),
+    presupuesto: { estado: "aprobado", items: PRES_RUE, cobraMobiliario: true, feePct: 10, cobraDiseno: true, disenoQ: 3500, fotosProUsd: 150, depositos: [{ fecha: "2026-05-20", monto: 120000, comprobante: true }] },
+    contrato: { estado: "firmado", fechaFirma: "2026-05-18", firmantes: [{ nombre: "Desarrolladora Mónaco", rol: "Propietario", firmado: true }, { nombre: "Spacio AM", rol: "Administrador", firmado: true }] },
+    facturas: [
+      { num: "MO-1001", fecha: "2026-06-01", monto: 45200, desc: "Mobiliario lote fase 1", proveedor: "SUO", tipo: "pdf", entrega: "inmediata", items: [] },
+      { num: "MO-1002", fecha: "2026-07-10", monto: 38900, desc: "Mobiliario lote fase 2 (parcial)", proveedor: "CEMACO", tipo: "pdf", entrega: "programada 2026-08-30", items: [] }
+    ],
+    checklist: ["Internet", "Limpieza inicial", "Cerradura inteligente", "Electricidad", "Tarjetas de acceso"],
+    gantt: [
+      { hito: "Fase 1 lanzada (12 unidades)", fecha: "2026-07-15", done: true },
+      { hito: "Fase 2 en ejecución", fecha: "2026-08-01 → 2026-09-30", done: false }
+    ]
   }
 ];
 
@@ -297,3 +352,7 @@ export const RECEPCIONES = [
   { id: "r1", proyectoId: "p1", fecha: "2026-06-27", numeroDoc: "3107275642", llegoDoc: true, completo: true, buenEstado: true, cuadra: true, comentario: "TV y toallas recibidas, todo en orden.", fotos: 3, estado: "entregado" },
   { id: "r2", proyectoId: "p1", fecha: "2026-07-09", numeroDoc: "939933987", llegoDoc: false, completo: false, buenEstado: true, cuadra: false, comentario: "Llegaron 2 de 3 mesas de noche; falta una. Sin documento físico.", fotos: 4, estado: "pendiente" }
 ];
+
+if (typeof window !== "undefined") {
+  window.SPACIO_DATOS = { ETAPAS, CATALOGO, PROVEEDORES, DUENOS, CHECKLIST, REVISION_HITOS, CORREO_TEMPLATES, CORREOS, EQUIPO, TAREAS_DEFAULT, PROYECTOS, CUENTAS, CONTACTOS, RECEPCIONES, INSUMOS_DEFAULT };
+}
