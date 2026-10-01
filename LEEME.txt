@@ -1,0 +1,24 @@
+GROW · ARCHIVOS MODIFICADOS EN ESTA ACTUALIZACIÓN
+
+Solo cambió UN archivo. Reemplaza el index.html de la raíz del repositorio
+por el de esta carpeta. No toques assets/ ni .nojekyll: siguen igual.
+
+  index.html   la app completa (bundle autocontenido)
+
+QUÉ CAMBIÓ
+  · Descargar archivos compartidos (solo administración). Cada archivo tiene
+    botón de descarga en su formato original; el machote de contrato se descarga
+    como PDF. El visor también trae el botón. El propietario sigue en solo lectura.
+  · Solicitar datos al cliente. En Proyecto → Resumen hay una tarjeta "Datos del
+    cliente" con el enlace "Solicitar datos al cliente": copia el link o envíalo
+    por correo. El cliente llena un formulario por pasos (persona o empresa, datos
+    personales, propiedad, acceso y facturación, foto del DPI, revisión) sin iniciar
+    sesión. Al enviarlo te llega aviso en la app y a hola@spacioam.com, y con
+    "Pasar al contrato y al usuario" se llenan el contrato y la ficha del propietario.
+  · Presupuesto: arrastrar para reordenar (también en teléfono) y renombrar ítems.
+
+IMPORTANTE
+  El enlace del formulario apunta a https://grow.spacioam.com/?datos=…
+  El index.html debe estar publicado en ese dominio.
+
+Nada de Apps Script cambió: no hace falta publicar una nueva versión del endpoint.
