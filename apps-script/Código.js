@@ -198,6 +198,8 @@ function doOptions(e) { return ContentService.createTextOutput("").setMimeType(C
 function route(e) {
   try {
     var p = (e && e.postData && e.postData.contents) ? JSON.parse(e.postData.contents) : (e ? e.parameter : {});
+    var __diag = accesosDiag_(p); if (__diag) return __diag;   // fase 1b: resumen de accesos (robot)
+    var __ses = sesionDe_(p); registrarAcceso_(p.action, !!__ses);   // fase 1b: aún no bloquea
     var a = p.action, r;
     switch (a) {
       case "getAll":     r = apiGetAll(p.fresh === true || p.fresh === "true"); break;
