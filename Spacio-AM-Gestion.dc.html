@@ -3518,7 +3518,7 @@ class Component extends DCLogic {
     const pass = this.state.login.p || "";
     const emailLc = email.toLowerCase();
     const fallback = () => {
-      if (emailLc === "jovalle@spacioam.com" && pass === "Valencia2026!") {
+      if (false /* fase 3: sin contraseña de respaldo en el código */) {
         this.setState({ rol: "admin", proyId: null, visitaId: null, adminTab: "hoy", login: { u: "", p: "" }, loginNeedsPass: null });
         this.cargarDelSheet();
         this.guardarSesion({ rol: "admin", userNombre: "Administración", userEmail: emailLc });
