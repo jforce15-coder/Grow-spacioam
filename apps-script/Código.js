@@ -198,7 +198,7 @@ function doOptions(e) { return ContentService.createTextOutput("").setMimeType(C
 function route(e) {
   try {
     var p = (e && e.postData && e.postData.contents) ? JSON.parse(e.postData.contents) : (e ? e.parameter : {});
-    var __diag = accesosDiag_(p); if (__diag) return __diag;   // fase 1b: resumen de accesos (robot)
+    var __diag = accesosDiag_(p) || duenosDiag_(p); if (__diag) return __diag;   // fase 1b: resumen de accesos (robot)
     var __ses = sesionDe_(p); registrarAcceso_(p.action, !!__ses);   // fase 1b: aún no bloquea
     var a = p.action, r;
     switch (a) {
@@ -218,8 +218,8 @@ function route(e) {
       }
       case "list":       r = apiList(p.sheet); break;
       case "get":        r = apiGet(p.sheet, p.id); break;
-      case "create":     r = apiCreate(p.sheet, p.data); cacheDrop_(); break;
-      case "update":     r = apiUpdate(p.sheet, p.id, p.data); cacheDrop_(); break;
+      case "create":     r = apiCreate(p.sheet, p.data); cacheDrop_(); try { loginDuenoDespuesDe_(p.sheet, r && (r.id || r[SCHEMA[p.sheet] ? SCHEMA[p.sheet][0] : ""] || (p.data || {})[SCHEMA[p.sheet] ? SCHEMA[p.sheet][0] : ""])); } catch (eL) {} break;
+      case "update":     r = apiUpdate(p.sheet, p.id, p.data); cacheDrop_(); try { loginDuenoDespuesDe_(p.sheet, p.id); } catch (eL) {} break;
       case "delete":     r = apiDelete(p.sheet, p.id); cacheDrop_(); break;
       case "uploadFile": r = uploadFile(p.b64, p.name, p.mime, p.subfolder); cacheDrop_(); break;
       /* Autoguardado colaborativo: el estado completo de un proyecto, con versión. */
