@@ -44,3 +44,7 @@ function duenosDiag_(body) {
   var out = h === SES_ROBOT_HASH_ ? Object.assign({ ok: true }, loginSincronizarDuenos_()) : { ok: false, error: 'token' };
   return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
 }
+
+/* Correr UNA vez desde el editor de Apps Script (botón ▶ Ejecutar): autoriza que Grow hable con el login
+   (permiso «conectarse a un servicio externo») y da de alta a los dueños que ya existen. */
+function autorizarAccesoDuenos() { Logger.log(JSON.stringify(loginSincronizarDuenos_())); }
