@@ -219,8 +219,8 @@ function route(e) {
       }
       case "list":       r = apiList(p.sheet); break;
       case "get":        r = apiGet(p.sheet, p.id); break;
-      case "create":     r = apiCreate(p.sheet, p.data); cacheDrop_(); try { loginDuenoDespuesDe_(p.sheet, r && (r.id || r[SCHEMA[p.sheet] ? SCHEMA[p.sheet][0] : ""] || (p.data || {})[SCHEMA[p.sheet] ? SCHEMA[p.sheet][0] : ""])); } catch (eL) {} break;
-      case "update":     r = apiUpdate(p.sheet, p.id, p.data); cacheDrop_(); try { loginDuenoDespuesDe_(p.sheet, p.id); } catch (eL) {} break;
+      case "create":     r = apiCreate(p.sheet, p.data); cacheDrop_(); try { loginDuenoDespuesDe_(p.sheet, r && (r.id || r[SCHEMA[p.sheet] ? SCHEMA[p.sheet][0] : ""] || (p.data || {})[SCHEMA[p.sheet] ? SCHEMA[p.sheet][0] : ""]), p); } catch (eL) {} break;
+      case "update":     r = apiUpdate(p.sheet, p.id, p.data); cacheDrop_(); try { loginDuenoDespuesDe_(p.sheet, p.id, p); } catch (eL) {} break;
       case "delete":     r = apiDelete(p.sheet, p.id); cacheDrop_(); break;
       case "uploadFile": r = uploadFile(p.b64, p.name, p.mime, p.subfolder); cacheDrop_(); break;
       /* Autoguardado colaborativo: el estado completo de un proyecto, con versión. */
