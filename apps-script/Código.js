@@ -200,7 +200,7 @@ function route(e) {
     var p = (e && e.postData && e.postData.contents) ? JSON.parse(e.postData.contents) : (e ? e.parameter : {});
     var __diag = accesosDiag_(p) || duenosDiag_(p) || secretariaApi_(p); if (__diag) return __diag;   // fase 1b: resumen de accesos (robot)
     var __ses = sesionDe_(p); registrarAcceso_(p.action, __ses ? true : esRobot_(p) ? 'r' : false);
-    var __bloq = exigirSesion_(p.action, !!__ses, p, ['ping']); if (__bloq) return __bloq;   // fase 1c: solo bloquea con SESION_EXIGIR = 1
+    var __bloq = datosClientePasa_(p) ? null : exigirSesion_(p.action, !!__ses, p, ['ping']); if (__bloq) return __bloq;   // fase 1c: solo bloquea con SESION_EXIGIR = 1
     var a = p.action, r;
     switch (a) {
       case "getAll":     r = apiGetAll(p.fresh === true || p.fresh === "true"); break;
@@ -235,6 +235,30 @@ function route(e) {
   } catch (err) {
     return out({ ok:false, error:err.toString() });
   }
+}
+/* Fase 1c · formulario «datos del cliente» (grow.spacioam.com/?datos=<proyecto>&k=<llave>): lo llena el
+   propietario SIN sesión, así que solo esto pasa sin ella:
+   · saveState de SU fila DATOS-<proyecto>, si trae la llave del enlace (= datosToken del proyecto);
+   · uploadFile a «Propiedades/<…>/00 Datos del cliente» (las fotos del DPI);
+   · notify a hola@spacioam.com (el aviso de «datos recibidos»).
+   Leer (getStates) sigue pidiendo sesión: el formulario solo pierde el «volver con lo que ya mandó». */
+function datosClientePasa_(p) {
+  var a = String((p && p.action) || '');
+  if (a === 'saveState') {
+    var pid = String(p.proyecto_id || '');
+    if (pid.indexOf('DATOS-') !== 0) return false;
+    var k = ''; try { k = String((JSON.parse(p.json || '{}') || {}).k || ''); } catch (e) {}
+    if (!k) return false;
+    var est = (getStates('', [pid.slice(6)]).estados || [])[0], j = {};
+    try { j = JSON.parse((est && est.json) || '{}') || {}; } catch (e) {}
+    return !!j.datosToken && String(j.datosToken) === k;
+  }
+  if (a === 'uploadFile') return /^Propiedades\/[^\/]+(\/[^\/]+)?\/00 Datos del cliente$/.test(String(p.subfolder || '')) && String(p.b64 || '').length < 12000000;
+  if (a === 'notify') {
+    var to = Array.isArray(p.to) ? p.to : [p.to];
+    return to.length === 1 && String(to[0] || '').trim().toLowerCase() === 'hola@spacioam.com';
+  }
+  return false;
 }
 function out(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
