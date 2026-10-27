@@ -229,6 +229,8 @@ function route(e) {
       case "notify":     r = notify(p); break;
       case "enviarCorreo": r = notify(p); break;
       case "importSheet": r = importSheet(p.id, p.gid); break;
+      /* DPI y documentos del cliente: privados en Drive; solo el equipo con sesión los ve (fase 1c lo exige). */
+      case "verDoc":     r = verDocCliente_(p.fileId); break;
       default: return out({ ok:false, error:"Acción desconocida: " + a });
     }
     return out({ ok:true, data:r });
@@ -499,12 +501,48 @@ function uploadFile(b64, name, mime, subfolder) {
   var file = folder.createFile(blob);
   // Compartir con enlace puede estar prohibido por la política del Workspace; si
   // falla, el archivo igual queda en Drive y la app lo muestra desde el thumbnail.
+  // El DPI y los documentos del cliente NO se comparten: la app los pide con verDoc.
   var compartido = true;
-  try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }
+  if (esCarpetaDatosCliente_(folder)) compartido = false;
+  else try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }
   catch (eS) { compartido = false; try { file.setSharing(DriveApp.Access.DOMAIN_WITH_LINK, DriveApp.Permission.VIEW); } catch (eD) {} }
   var id = file.getId();
   return { url: "https://drive.google.com/thumbnail?id=" + id + "&sz=w1600", fileId: id,
     verUrl: "https://drive.google.com/file/d/" + id + "/view", compartido: compartido };
+}
+
+/* ═══ Documentos del cliente (DPI, acta, patente) — privados ═══
+   Viven en «Propiedades/<proyecto>/00 Datos del cliente» sin enlace público. verDoc los entrega en base64 solo dentro
+   de esa carpeta (no sirve para leer cualquier archivo del Drive) y solo con sesión. */
+var CARPETA_DATOS_CLIENTE_ = "00 Datos del cliente";
+function esCarpetaDatosCliente_(folder) { return !!folder && folder.getName() === CARPETA_DATOS_CLIENTE_; }
+function verDocCliente_(fileId) {
+  var id = String(fileId || "").replace(/[^A-Za-z0-9_-]/g, "");
+  if (!id) throw new Error("Falta el archivo.");
+  var file = DriveApp.getFileById(id), padres = file.getParents(), ok = false;
+  while (padres.hasNext()) if (esCarpetaDatosCliente_(padres.next())) ok = true;
+  if (!ok) throw new Error("Ese archivo no es un documento del cliente.");
+  var blob = file.getBlob();
+  if (blob.getBytes().length > 15 * 1024 * 1024) throw new Error("El archivo es demasiado grande para abrirlo aquí.");
+  return { nombre: file.getName(), mime: blob.getContentType() || "application/octet-stream", b64: Utilities.base64Encode(blob.getBytes()) };
+}
+/* Una sola vez, desde el editor: quita el enlace público a los documentos de clientes ya subidos.
+   Recorre Propiedades/<proyecto>/(<sub>/)00 Datos del cliente. Devuelve cuántos cerró. */
+function cerrarDocsClientes() {
+  var raiz = DriveApp.getFolderById(FOLDER_ID), props = raiz.getFoldersByName("Propiedades"), n = 0, total = 0;
+  var cerrar = function (carpeta) {
+    var fs = carpeta.getFiles();
+    while (fs.hasNext()) { var f = fs.next(); total++;
+      try { if (f.getSharingAccess() !== DriveApp.Access.PRIVATE) { f.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE); n++; } } catch (e) { Logger.log("No pude cerrar " + f.getName() + ": " + e); } }
+  };
+  var recorrer = function (carpeta, nivel) {
+    var hs = carpeta.getFolders();
+    while (hs.hasNext()) { var h = hs.next();
+      if (esCarpetaDatosCliente_(h)) cerrar(h); else if (nivel < 2) recorrer(h, nivel + 1); }
+  };
+  while (props.hasNext()) recorrer(props.next(), 0);
+  Logger.log("Documentos de clientes: " + total + " revisados, " + n + " quedaron privados.");
+  return { revisados: total, cerrados: n };
 }
 
 /* ═══ Correo — mismo patrón que la EPI App (alias hola@spacioam.com) ═══ */
