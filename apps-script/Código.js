@@ -203,7 +203,7 @@ function route(e) {
     var __bloq = datosClientePasa_(p) ? null : exigirSesion_(p.action, !!__ses, p, ['ping']); if (__bloq) return __bloq;   // fase 1c: solo bloquea con SESION_EXIGIR = 1
     var a = p.action, r;
     switch (a) {
-      case "getAll":     r = apiGetAll(p.fresh === true || p.fresh === "true"); break;
+      case "getAll":     r = apiGetAll(p.fresh === true || p.fresh === "true"); if (__ses) cerrarDocsUnaVez_(); break;
       /* Diagnóstico: con qué identidad corre esta implementación y si ve Drive.
          Si `usuario` viene vacío, la implementación corre anónima → Drive se niega. */
       case "diag": {
@@ -526,14 +526,27 @@ function verDocCliente_(fileId) {
   if (blob.getBytes().length > 15 * 1024 * 1024) throw new Error("El archivo es demasiado grande para abrirlo aquí.");
   return { nombre: file.getName(), mime: blob.getContentType() || "application/octet-stream", b64: Utilities.base64Encode(blob.getBytes()) };
 }
-/* Una sola vez, desde el editor: quita el enlace público a los documentos de clientes ya subidos.
+/* La primera vez que alguien del equipo abre Grow (getAll con sesión), la app web cierra los enlaces de los documentos
+   ya subidos. Corre como la cuenta de la app web, que es la dueña de esos archivos: desde el editor, con otra cuenta,
+   Drive responde «Acceso denegado». El resultado queda en la propiedad DOCS_CERRADOS (no se repite). */
+function cerrarDocsUnaVez_() {
+  var P = PropertiesService.getScriptProperties(); if (P.getProperty("DOCS_CERRADOS")) return;
+  var lock = LockService.getScriptLock(); if (!lock.tryLock(100)) return;
+  try {
+    if (P.getProperty("DOCS_CERRADOS")) return;
+    var r = cerrarDocsClientes();
+    P.setProperty("DOCS_CERRADOS", JSON.stringify({ fecha: new Date().toISOString(), revisados: r.revisados, cerrados: r.cerrados, fallidos: r.fallidos }));
+  } catch (e) { P.setProperty("DOCS_CERRADOS", JSON.stringify({ fecha: new Date().toISOString(), error: String(e) })); }
+  finally { lock.releaseLock(); }
+}
+/* Quita el enlace público a los documentos de clientes ya subidos (la llama cerrarDocsUnaVez_).
    Recorre Propiedades/<proyecto>/(<sub>/)00 Datos del cliente. Devuelve cuántos cerró. */
 function cerrarDocsClientes() {
-  var raiz = DriveApp.getFolderById(FOLDER_ID), props = raiz.getFoldersByName("Propiedades"), n = 0, total = 0;
+  var raiz = DriveApp.getFolderById(FOLDER_ID), props = raiz.getFoldersByName("Propiedades"), n = 0, total = 0, mal = 0;
   var cerrar = function (carpeta) {
     var fs = carpeta.getFiles();
     while (fs.hasNext()) { var f = fs.next(); total++;
-      try { if (f.getSharingAccess() !== DriveApp.Access.PRIVATE) { f.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE); n++; } } catch (e) { Logger.log("No pude cerrar " + f.getName() + ": " + e); } }
+      try { if (f.getSharingAccess() !== DriveApp.Access.PRIVATE) { f.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE); n++; } } catch (e) { mal++; Logger.log("No pude cerrar " + f.getName() + ": " + e); } }
   };
   var recorrer = function (carpeta, nivel) {
     var hs = carpeta.getFolders();
@@ -541,8 +554,8 @@ function cerrarDocsClientes() {
       if (esCarpetaDatosCliente_(h)) cerrar(h); else if (nivel < 2) recorrer(h, nivel + 1); }
   };
   while (props.hasNext()) recorrer(props.next(), 0);
-  Logger.log("Documentos de clientes: " + total + " revisados, " + n + " quedaron privados.");
-  return { revisados: total, cerrados: n };
+  Logger.log("Documentos de clientes: " + total + " revisados, " + n + " quedaron privados" + (mal ? ", " + mal + " no se pudieron cerrar" : "") + ".");
+  return { revisados: total, cerrados: n, fallidos: mal };
 }
 
 /* ═══ Correo — mismo patrón que la EPI App (alias hola@spacioam.com) ═══ */
