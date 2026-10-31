@@ -125,8 +125,9 @@
   <sc-if value="{{ cargando }}" hint-placeholder-val="{{ true }}">
     <div style="position:fixed;inset:0;z-index:500;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px">
       <img src="assets/brand/logo-primary-transparent.png" alt="Spacio AM" style="width:min(44vw,220px);height:auto;display:block">
-      <span aria-hidden="true" style="width:26px;height:26px;border-radius:50%;border:2px solid var(--divider);border-top-color:var(--accent);animation:sa-spin .7s linear infinite"></span>
       <span class="t-eyebrow" style="color:var(--fg-muted);text-align:center;padding:0 24px">Conectando con tu información…</span>
+      <!-- Rápido de sentir (hub ds/velocidad.md, regla 2): la forma del panel en gris, no una ruedita. -->
+      <div class="sa-esq" aria-label="Cargando tu información" style="width:min(560px,calc(100% - 32px))"><i class="t"></i><i class="corta"></i><div class="sa-esq dos"><i class="c"></i><i class="c"></i><i class="c"></i><i class="c"></i></div><i class="g"></i></div>
     </div>
   </sc-if>
 
