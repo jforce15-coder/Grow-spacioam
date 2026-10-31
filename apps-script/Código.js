@@ -30,7 +30,7 @@ var FOLDER_ID      = SP.getProperty("FOLDER_ID") || "";
    Los campos compuestos del documento de esquema se expanden a columnas reales
    (habitaciones/banos, render_1..4, etc.). No hay celdas combinadas. */
 var SCHEMA = {
-  "01_PROYECTOS": ["proyecto_id","nombre","edificio","apartamento","zona","habitaciones","banos","tipo","equipado","linea_blanca","dueno_id","etapa","farol","amueblado_por_nosotros","con_anteproyecto","motivo_descarte","fecha_ingreso","carpeta_drive","es_edificio","num_unidades","amenidades_fotos"],
+  "01_PROYECTOS": ["proyecto_id","nombre","edificio","apartamento","zona","habitaciones","banos","tipo","equipado","linea_blanca","dueno_id","etapa","farol","amueblado_por_nosotros","con_anteproyecto","motivo_descarte","fecha_ingreso","carpeta_drive","es_edificio","num_unidades","amenidades_fotos","etapa_desde"],
   "02_DUENOS": ["dueno_id","nombre","email","telefono","nit","sujeto_retencion","regimen","dpi_url","representante","acta_url"],
   "03_EMBUDO_EVENTOS": ["evento_id","proyecto_id","fecha_hora","de_etapa","a_etapa","usuario","nota"],
   "04_REUNIONES": ["reunion_id","proyecto_id","fecha_hora","enlace_meet","correo_enviado","transcripcion","resumen_ia"],
@@ -128,6 +128,7 @@ function setup() {
     if (s && ss.getSheets().length > 1 && s.getLastRow() === 0) ss.deleteSheet(s);
   });
   seed_(ss);
+  try { rellenarEtapaDesde(); } catch (e) {}
   return "Listo: " + Object.keys(SCHEMA).length + " hojas.";
 }
 
@@ -364,6 +365,7 @@ function apiCreate(name, data) {
   var existing = sheet_(name).getDataRange().getValues();
   for (var i = 1; i < existing.length; i++) if (String(existing[i][0]) === String(data[pk]))
     throw new Error("Ya existe " + pk + " = " + data[pk]);
+  if (name === "01_PROYECTOS" && !data.etapa_desde) data.etapa_desde = hoyEtapa_();
   sh.appendRow(objToRow_(cols, data));
   return { created:true, id:data[pk] };
 }
@@ -373,13 +375,24 @@ function apiUpdate(name, id, data) {
   for (var i = 1; i < values.length; i++) {
     if (String(values[i][0]) === String(id)) {
       var merged = rowToObj_(cols, values[i]);
+      var etapaAntes = merged.etapa;
       Object.keys(data || {}).forEach(function(k){ merged[k] = data[k]; });
+      // Fecha en que el proyecto entró a su etapa actual (para avisar de lo detenido)
+      if (name === "01_PROYECTOS" && (merged.etapa !== etapaAntes || !merged.etapa_desde) && !(data && data.etapa_desde)) merged.etapa_desde = hoyEtapa_();
       merged[cols[0]] = id; // la PK no cambia
       sh.getRange(i + 1, 1, 1, cols.length).setValues([objToRow_(cols, merged)]);
       return { updated:true, id:id };
     }
   }
   throw new Error("No se encontró " + cols[0] + " = " + id);
+}
+function hoyEtapa_() { return Utilities.formatDate(new Date(), "America/Guatemala", "yyyy-MM-dd"); }
+/* Proyectos que ya existían no tienen etapa_desde: cuentan desde hoy (decisión de Juan). Se corre sola en setup(). */
+function rellenarEtapaDesde() {
+  var sh = sheet_("01_PROYECTOS"), cols = SCHEMA["01_PROYECTOS"], ci = cols.indexOf("etapa_desde"), hoy = hoyEtapa_(), n = 0;
+  var v = sh.getDataRange().getValues();
+  for (var i = 1; i < v.length; i++) if (v[i][0] && !v[i][ci]) { sh.getRange(i + 1, ci + 1).setValue(hoy); n++; }
+  return "etapa_desde rellenada en " + n + " proyectos.";
 }
 function apiDelete(name, id) {
   var sh = sheet_(name), values = sh.getDataRange().getValues();
