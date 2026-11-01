@@ -11,7 +11,7 @@ function loginAltaDueno_(email, nombre, auth) {
   var p = PropertiesService.getScriptProperties(), hechos = {};
   try { hechos = JSON.parse(p.getProperty('LOGIN_DUENOS') || '{}'); } catch (e) {}
   if (hechos[email]) return { ok: true, ya: true };
-  var r = UrlFetchApp.fetch(LOGIN_URL_, { method: 'post', contentType: 'text/plain;charset=utf-8', muteHttpExceptions: true, followRedirects: true,
+  var r = uf_(LOGIN_URL_, { method: 'post', contentType: 'text/plain;charset=utf-8', muteHttpExceptions: true, followRedirects: true,
     payload: JSON.stringify({ action: 'addUser', token: p.getProperty('LOGIN_TOKEN') || 'SpacioAM2026!', by: p.getProperty('LOGIN_ADMIN_EMAIL') || 'jovalle@spacioam.com',
       email: email, nombre: String(nombre || '').trim() || email.split('@')[0], app: 'grow', rol: 'dueno',
       session: (auth && auth.session) || undefined, robot: (auth && auth.robot) || undefined }) });
