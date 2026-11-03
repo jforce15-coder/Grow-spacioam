@@ -2,7 +2,7 @@
    Puerta de servidor a servidor para que la secretaria operativa del Hub consulte y mueva proyectos de Grow
    sin abrir la app. Escribe en las hojas Y en el estado compartido (31_ESTADO_PROYECTO), porque en la app el
    JSON del proyecto manda sobre la fila de 01_PROYECTOS: si solo se tocara la hoja, el cambio no se vería.
-   Body: { action:'__secretaria', token, op, ... }   op = resumen | equipo | crear | etapa | visita
+   Body: { action:'__secretaria', token, op, ... }   op = resumen | equipo | crear | etapa | visita | dato
    El token es propio de esta puerta (solo su huella vive aquí; el Hub guarda el texto en GROW_TOKEN). */
 var SEC_HASH_ = '57dc1bec6bf523ae0c0039302d883f8a1efefda52eb90d1da8a733d92e99a56e';
 var SEC_ETAPAS_ = ["desconocido", "reunion", "archivos", "visita", "decision", "anteproyecto", "presupuesto", "contrato", "ejecucion", "fotos", "lanzamiento", "revision", "descartado"];
@@ -21,6 +21,7 @@ function secretariaApi_(body) {
         : op === 'crear' ? secCrear_(body)
         : op === 'etapa' ? secEtapa_(body)
         : op === 'visita' ? secVisita_(body)
+        : op === 'dato' ? secDato_(body)
         : { ok: false, error: 'op desconocida: ' + op };
     } catch (e) { out = { ok: false, error: String(e && e.message || e) }; }
   }
@@ -57,6 +58,7 @@ function secProyectos_() {
       etapa: j.etapa || (fila && fila.etapa) || 'desconocido',
       farol: j.farol || (fila && fila.farol) || 'pending',
       dueno: (d && d.nombre) || j.dueno || '',
+      dueno_id: dId,
       creado: j.creado || (fila && (fila.fecha_ingreso instanceof Date ? fila.fecha_ingreso.toISOString().slice(0, 10) : fila.fecha_ingreso)) || '',
       motivo: j.motivo || (fila && fila.motivo_descarte) || '',
       visita: v ? { fecha: v.fecha instanceof Date ? Utilities.formatDate(v.fecha, 'America/Guatemala', 'yyyy-MM-dd HH:mm') : String(v.fecha || ''), asignado: v.asignadoA || '', completa: !!v.completa } : null
@@ -145,6 +147,46 @@ function secEtapa_(b) {
   try { apiCreate('03_EMBUDO_EVENTOS', secFila_('03_EMBUDO_EVENTOS', { proyecto_id: p.id, fecha_hora: new Date().toISOString(), de_etapa: p.etapa, a_etapa: etapa, usuario: 'ALMA · ' + String(b.por || ''), nota: motivo })); } catch (e) {}
   cacheDrop_();
   return { ok: true, proyecto: p.nombre, de: p.etapa, a: etapa };
+}
+
+/* Dato de hecho (Alma lo anota sola y le avisa a Juan después): apartamento, edificio o zona de un proyecto; nombre,
+   teléfono o correo de su dueño. Nada de dinero, etapas, contratos ni accesos: esos campos no están en esta lista.
+   Devuelve el valor de antes para que el Hub diga «antes decía…» y lo guarde en su historial (ALMA_DATOS_HECHO).
+   El correo nuevo de un dueño NO le da acceso aquí: eso sigue su propio camino (loginSincronizarDuenos_). */
+var SEC_DATOS_ = { proyecto: { apto: ['apartamento', 'apto'], edificio: ['edificio', 'edificio'], zona: ['zona', 'zona'] },
+  dueno: { nombre: ['nombre', 'dueno'], telefono: ['telefono', 'telefono'], email: ['email', 'email'] } };
+function secDato_(b) {
+  var tipo = b.tipo === 'dueno' ? 'dueno' : 'proyecto', campo = String(b.campo || ''), col = SEC_DATOS_[tipo][campo];
+  if (!col) throw new Error('Ese campo no se cambia por aquí: ' + campo + '. Solo ' + Object.keys(SEC_DATOS_[tipo]).join(', ') + '.');
+  var valor = String(b.valor == null ? '' : b.valor).trim().slice(0, 120); if (!valor) throw new Error('Falta el valor.');
+  if (campo === 'email') valor = valor.toLowerCase();
+  var por = 'ALMA · ' + String(b.por || 'dato de hecho') + (b.fuente ? ' · ' + String(b.fuente).slice(0, 80) : '');
+  var limpio = function (x) { x = String(x == null ? '' : x).trim(); return x === '—' ? '' : x; };
+  var igual = function (a, c) { return campo === 'telefono' ? secTel_(a) === secTel_(c) : secNorm_(a) === secNorm_(c); };
+  if (tipo === 'proyecto') {
+    var p = secBuscarProyecto_(b.id), antes = limpio(p[campo]);
+    if (igual(antes, valor) || (b.solo_si_vacio && antes)) return { ok: true, sin_cambio: true, registro: p.nombre, id: p.id, campo: campo, antes: antes, ahora: antes || valor };
+    var d1 = {}; d1[col[0]] = valor;
+    try { apiUpdate('01_PROYECTOS', p.id, d1); } catch (e) { /* proyecto que solo vive en el JSON */ }
+    secTocarEstado_(p.id, function (j) { j[col[1]] = valor; return j; }, por);
+    cacheDrop_();
+    return { ok: true, registro: p.nombre, id: p.id, campo: campo, antes: antes, ahora: valor };
+  }
+  /* Dueño: por su id (D…) o por el de su proyecto (p…). */
+  var did = String(b.id || ''), nombreP = '';
+  if (/^p/.test(did)) { var pr = secBuscarProyecto_(did); nombreP = pr.nombre; did = pr.dueno_id; if (!did) throw new Error('El proyecto ' + pr.nombre + ' no tiene dueño registrado.'); }
+  var dn = readAll_('02_DUENOS').filter(function (x) { return String(x.dueno_id) === String(did); })[0];
+  if (!dn) throw new Error('No existe el dueño ' + did + '.');
+  var antesD = limpio(dn[col[0]]);
+  if (igual(antesD, valor) || (b.solo_si_vacio && antesD)) return { ok: true, sin_cambio: true, registro: String(dn.nombre || did), id: did, proyecto: nombreP, campo: campo, antes: antesD, ahora: antesD || valor };
+  var d2 = {}; d2[col[0]] = valor;
+  apiUpdate('02_DUENOS', did, d2);
+  var est = secEstados_();   // solo los proyectos de este dueño: tocar los demás les subiría la versión sin cambio
+  Object.keys(est).filter(function (pid) { return est[pid].json && String(est[pid].json.duenoId || '') === String(did); }).forEach(function (pid) {
+    secTocarEstado_(pid, function (j) { j[col[1]] = valor; return j; }, por);
+  });
+  cacheDrop_();
+  return { ok: true, registro: String(dn.nombre || did), id: did, proyecto: nombreP, campo: campo, antes: antesD, ahora: valor };
 }
 
 /* Solo las columnas que existen en la hoja (03_EMBUDO_EVENTOS cambia de forma entre versiones). */
