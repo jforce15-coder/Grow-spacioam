@@ -2,7 +2,7 @@
    Puerta de servidor a servidor para que la secretaria operativa del Hub consulte y mueva proyectos de Grow
    sin abrir la app. Escribe en las hojas Y en el estado compartido (31_ESTADO_PROYECTO), porque en la app el
    JSON del proyecto manda sobre la fila de 01_PROYECTOS: si solo se tocara la hoja, el cambio no se vería.
-   Body: { action:'__secretaria', token, op, ... }   op = resumen | equipo | crear | etapa | visita | dato
+   Body: { action:'__secretaria', token, op, ... }   op = resumen | equipo | crear | etapa | visita | dato | fotos | presupuesto
    El token es propio de esta puerta (solo su huella vive aquí; el Hub guarda el texto en GROW_TOKEN). */
 var SEC_HASH_ = '57dc1bec6bf523ae0c0039302d883f8a1efefda52eb90d1da8a733d92e99a56e';
 var SEC_ETAPAS_ = ["desconocido", "reunion", "archivos", "visita", "decision", "anteproyecto", "presupuesto", "contrato", "ejecucion", "fotos", "lanzamiento", "revision", "descartado"];
@@ -22,6 +22,8 @@ function secretariaApi_(body) {
         : op === 'etapa' ? secEtapa_(body)
         : op === 'visita' ? secVisita_(body)
         : op === 'dato' ? secDato_(body)
+        : op === 'fotos' ? secFotos_(body)
+        : op === 'presupuesto' ? secPresupuesto_(body)
         : { ok: false, error: 'op desconocida: ' + op };
     } catch (e) { out = { ok: false, error: String(e && e.message || e) }; }
   }
@@ -223,6 +225,90 @@ function secVisita_(b) {
   }
   cacheDrop_();
   return { ok: true, proyecto: p.nombre, fecha: fecha, asignado: u.nombre, reprogramada: !!vf, etapa: mover ? 'visita' : p.etapa, correo_enviado: correo };
+}
+
+/* ═══ Fotos de la visita (solo lectura) ═══
+   Para que Alma mire las fotos del levantamiento y le haga recomendaciones al administrador. Junta las de 30_FOTOS
+   (cada foto ya subida a Drive) con las que nombra el JSON del proyecto (visitaData y la de cada unidad), sin repetir.
+   Solo se leen archivos que el proyecto nombra: por aquí no se puede abrir cualquier archivo del Drive.
+   Las fotos que siguen solo en el teléfono de quien visitó (data: sin subir) se cuentan, no se mandan.
+   Devuelve las imágenes en base64 (de a 4, máximo 6) para que el Hub las pase como bloques de imagen. */
+function secFotosDeVis_(vis, apto, push, local) {
+  if (!vis) return;
+  var una = function (src, zona) { src = String(src || ''); if (!src) return; if (src.slice(0, 5) === 'data:') { local.n++; return; } push(src, apto, zona, ''); };
+  var fz = vis.fotosZona || {};
+  Object.keys(fz).forEach(function (z) { (fz[z] || []).forEach(function (x) { una(x, z); }); });
+  (vis.fotosLibres || []).forEach(function (x) { una(x, 'Sin zona'); });
+  (vis.mant || []).forEach(function (m) { (m.fotos || []).forEach(function (x) { una(x, 'Mantenimiento' + (m.desc || m.titulo ? ' · ' + String(m.desc || m.titulo).slice(0, 60) : '')); }); });
+}
+function secFotos_(b) {
+  var p = secBuscarProyecto_(b.proyecto_id), j = (secEstados_()[p.id] || {}).json || {};
+  var lista = [], porId = {}, local = { n: 0 };
+  var idDe = function (u) { return (String(u).match(/[?&]id=([\w-]{20,})/) || String(u).match(/\/d\/([\w-]{20,})/) || [])[1] || ''; };
+  var push = function (url, apto, zona, fecha, fid) {
+    var id = fid || idDe(url); if (!id || porId[id]) return;
+    porId[id] = 1; lista.push({ id: id, apto: String(apto || ''), zona: String(zona || 'Sin zona'), fecha: fecha ? String(fecha).slice(0, 10) : '' });
+  };
+  readAll_('30_FOTOS').filter(function (f) { return String(f.proyecto_id) === p.id; }).forEach(function (f) {
+    push(f.url, f.apartamento, f.zona, f.fecha instanceof Date ? f.fecha.toISOString() : f.fecha, String(f.file_id || ''));
+  });
+  secFotosDeVis_(j.visitaData, '', push, local);
+  (j.unidades || []).forEach(function (u) { secFotosDeVis_(u.visitaData, u.apto, push, local); });
+  var porApto = {}; lista.forEach(function (f) { var k = f.apto || 'Proyecto'; porApto[k] = (porApto[k] || 0) + 1; });
+  var na = secNorm_(b.apto).replace(/^apto\s*/, ''), nz = secNorm_(b.zona);
+  var elegidas = lista.filter(function (f) { return (!na || secNorm_(f.apto) === na) && (!nz || secNorm_(f.zona).indexOf(nz) >= 0); });
+  var desde = Math.max(0, Number(b.desde) || 0), cuantas = Math.max(1, Math.min(6, Number(b.cuantas) || 4));
+  var tanda = elegidas.slice(desde, desde + cuantas), imagenes = [], fotos = [];
+  tanda.forEach(function (f, i) {
+    var fila = { n: desde + i + 1, apto: f.apto, zona: f.zona, fecha: f.fecha, ver: 'https://drive.google.com/file/d/' + f.id + '/view' };
+    try {
+      var bl = DriveApp.getFileById(f.id).getBlob(), mt = String(bl.getContentType() || ''), by = bl.getBytes();
+      if (!/^image\/(jpeg|png|webp|gif)$/.test(mt)) fila.nota = 'no es foto (' + mt + ')';
+      else if (by.length > 3.5 * 1024 * 1024) fila.nota = 'muy pesada para mirarla aquí; ábrela con el enlace';
+      else { imagenes.push('data:' + mt + ';base64,' + Utilities.base64Encode(by)); fila.imagen = imagenes.length; }
+    } catch (e) { fila.nota = 'no se pudo abrir en Drive'; }
+    fotos.push(fila);
+  });
+  return { ok: true, proyecto: p.nombre, total: lista.length, por_apto: porApto, coinciden: elegidas.length,
+    solo_en_telefono: local.n, fotos: fotos, imagenes: imagenes, siguiente: desde + cuantas < elegidas.length ? desde + cuantas : null };
+}
+
+/* ═══ Presupuesto (solo lectura) ═══
+   Los presupuestos del proyecto con las mismas cuentas que la pestaña Presupuesto de la app: mobiliario (suma de
+   precio × cantidad), fee sobre el mobiliario, diseño de interiores (solo con anteproyecto) y fotos pro en dólares
+   (tipo de cambio 7.75). Sirve para que el Hub arme el PDF. Sin JSON, cae a 08_PRESUPUESTOS y 09_PRESUPUESTO_ITEMS. */
+var SEC_TC_ = 7.75;
+function secPresupuesto_(b) {
+  var p = secBuscarProyecto_(b.proyecto_id), j = (secEstados_()[p.id] || {}).json || {};
+  var hab = Number(j.hab) || 1, ante = hab >= 3 ? 2500 : hab === 2 ? 2000 : 1500, fotoUsd = hab >= 3 ? 250 : hab === 2 ? 200 : 150;
+  var lista = (j.presupuestos && j.presupuestos.length) ? j.presupuestos : (j.presupuesto ? [j.presupuesto] : []);
+  if (!lista.length) {
+    var items = readAll_('09_PRESUPUESTO_ITEMS');
+    lista = readAll_('08_PRESUPUESTOS').filter(function (x) { return String(x.proyecto_id) === p.id; }).map(function (x) {
+      return { nombre: 'Presupuesto', estado: x.estado, feePct: x.fee_pct !== '' ? Number(x.fee_pct) : 10, cobraDiseno: Number(x.anteproyecto_q) > 0, disenoQ: Number(x.anteproyecto_q) || 0,
+        fotosProUsd: x.fotos_pro_usd !== '' ? Number(x.fotos_pro_usd) : null,
+        items: items.filter(function (i) { return String(i.presupuesto_id) === String(x.presupuesto_id); }).map(function (i) { return { cat: i.categoria, item: i.item, precio: Number(i.precio_unitario) || 0, cant: Number(i.cantidad) || 0 }; }) };
+    });
+  }
+  if (!lista.length) return { ok: true, proyecto: p.nombre, presupuestos: [], nota: 'Este proyecto todavía no tiene presupuesto en Grow.' };
+  var out = lista.map(function (pr, idx) {
+    var its = (pr.items || []).map(function (i) { var pu = Number(i.precio) || 0, c = Number(i.cant) || 0; return { cat: String(i.cat || 'Sin categoría'), item: String(i.item || ''), precio: pu, cant: c, subtotal: pu * c }; });
+    var mob = its.reduce(function (s, i) { return s + i.subtotal; }, 0);
+    var cobraMob = pr.cobraMobiliario !== false, feePct = pr.feePct != null ? Number(pr.feePct) : 10, fee = cobraMob ? mob * feePct / 100 : 0;
+    var cobraDis = (pr.cobraDiseno !== false && !!j.conAnteproyecto) || (!j.id && !!pr.cobraDiseno), dis = cobraDis ? (pr.disenoQ != null ? Number(pr.disenoQ) : ante) : 0;
+    var fUsd = pr.fotosProUsd != null ? Number(pr.fotosProUsd) : fotoUsd, fQ = fUsd * SEC_TC_;
+    var resumen = [];
+    if (cobraMob) resumen.push({ k: 'Mobiliario', q: mob });
+    if (cobraMob && fee) resumen.push({ k: 'Fee mobiliario ' + feePct + '%', q: fee });
+    if (cobraDis) resumen.push({ k: 'Diseño de interiores', q: dis });
+    resumen.push({ k: 'Fotos pro ($' + fUsd + ')', q: fQ });
+    var deps = pr.depositos || (pr.deposito ? [pr.deposito] : []);
+    return { n: idx + 1, nombre: String(pr.nombre || (lista.length > 1 ? 'Presupuesto ' + (idx + 1) : 'Presupuesto')), apto: String(pr.apto || ''),
+      estado: pr.estado === 'aprobado' ? 'Aprobado por el propietario' : pr.estado === 'enviado' ? 'Enviado · esperando al propietario' : pr.confirmado ? 'Confirmado' : 'Borrador',
+      items: its, resumen: resumen, total: (cobraMob ? mob + fee : 0) + dis + fQ,
+      depositado: deps.reduce(function (s, d) { return s + (Number(d.monto) || 0); }, 0) };
+  });
+  return { ok: true, proyecto: p.nombre, edificio: p.edificio, apto: p.apto, zona: p.zona, dueno: p.dueno, presupuestos: out };
 }
 
 /* ═══ Búsqueda flexible (copia de buscar.js del Hub) ═══ */
