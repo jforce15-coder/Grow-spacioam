@@ -2,7 +2,7 @@
    Puerta de servidor a servidor para que la secretaria operativa del Hub consulte y mueva proyectos de Grow
    sin abrir la app. Escribe en las hojas Y en el estado compartido (31_ESTADO_PROYECTO), porque en la app el
    JSON del proyecto manda sobre la fila de 01_PROYECTOS: si solo se tocara la hoja, el cambio no se vería.
-   Body: { action:'__secretaria', token, op, ... }   op = resumen | equipo | crear | etapa | visita | dato
+   Body: { action:'__secretaria', token, op, ... }   op = resumen | equipo | crear | etapa | visita | dato | fotos | presupuesto_pdf
    El token es propio de esta puerta (solo su huella vive aquí; el Hub guarda el texto en GROW_TOKEN). */
 var SEC_HASH_ = '57dc1bec6bf523ae0c0039302d883f8a1efefda52eb90d1da8a733d92e99a56e';
 var SEC_ETAPAS_ = ["desconocido", "reunion", "archivos", "visita", "decision", "anteproyecto", "presupuesto", "contrato", "ejecucion", "fotos", "lanzamiento", "revision", "descartado"];
@@ -22,6 +22,8 @@ function secretariaApi_(body) {
         : op === 'etapa' ? secEtapa_(body)
         : op === 'visita' ? secVisita_(body)
         : op === 'dato' ? secDato_(body)
+        : op === 'fotos' ? secFotos_(body)
+        : op === 'presupuesto_pdf' ? secPresupuestoPdf_(body)
         : { ok: false, error: 'op desconocida: ' + op };
     } catch (e) { out = { ok: false, error: String(e && e.message || e) }; }
   }
@@ -223,6 +225,132 @@ function secVisita_(b) {
   }
   cacheDrop_();
   return { ok: true, proyecto: p.nombre, fecha: fecha, asignado: u.nombre, reprogramada: !!vf, etapa: mover ? 'visita' : p.etapa, correo_enviado: correo };
+}
+
+/* ═══ FOTOS DE LA VISITA (Alma las mira para recomendar) ═══
+   Junta las fotos del levantamiento: las filas de 30_FOTOS (cada foto que ya subió a Drive) y las que solo están en el
+   JSON del proyecto (fotos por zona, fotos libres y fotos de cada problema de mantenimiento, también por unidad). Las
+   que siguen en el teléfono (data:) no se cuentan: todavía no llegaron. Devuelve de a 6 (desde) en base64, porque los
+   archivos son de esta cuenta y el Hub no siempre puede abrirlos. Con las fotos van los problemas y comentarios de la
+   visita, para que Alma recomiende con contexto. */
+var SEC_FOTOS_MAX_ = 6;
+function secFotoId_(u) { var m = String(u || '').match(/[?&]id=([\w-]{10,})|\/d\/([\w-]{10,})/); return m ? (m[1] || m[2]) : ''; }
+function secFotos_(b) {
+  var p = secBuscarProyecto_(b.proyecto_id), j = (secEstados_()[p.id] || {}).json || {}, lista = [], vistos = {};
+  var na = secNorm_(b.apto), nz = secNorm_(b.zona);
+  var poner = function (id, zona, apto, fecha) {
+    if (!id || vistos[id]) return; vistos[id] = 1;
+    lista.push({ id: id, zona: String(zona || 'Sin zona'), apto: String(apto || ''), fecha: fecha instanceof Date ? Utilities.formatDate(fecha, 'America/Guatemala', 'yyyy-MM-dd') : String(fecha || '').slice(0, 10) });
+  };
+  readAll_('30_FOTOS').filter(function (f) { return String(f.proyecto_id) === p.id; })
+    .forEach(function (f) { poner(String(f.file_id || '') || secFotoId_(f.url), f.zona, f.apartamento, f.fecha); });
+  var problemas = [], comentarios = [];
+  var deVisita = function (v, apto) {
+    if (!v) return;
+    Object.keys(v.fotosZona || {}).forEach(function (z) { (v.fotosZona[z] || []).forEach(function (u) { poner(secFotoId_(u), z, apto, v.fecha); }); });
+    (v.fotosLibres || []).forEach(function (u) { poner(secFotoId_(u), 'Sin zona', apto, v.fecha); });
+    (v.mant || v.mantenimiento || []).forEach(function (m) {
+      problemas.push((apto ? 'Apto ' + apto + ' · ' : '') + String(m.titulo || 'Problema') + (m.comentario ? ': ' + String(m.comentario).slice(0, 300) : ''));
+      (m.fotos || []).forEach(function (u) { poner(secFotoId_(u), 'Mantenimiento · ' + String(m.titulo || ''), apto, v.fecha); });
+    });
+    (v.inv || v.inventarioComentarios || []).forEach(function (c) { if (c && c.texto) comentarios.push((apto ? 'Apto ' + apto + ' · ' : '') + String(c.texto).slice(0, 300)); });
+    if (v.detalles) comentarios.push((apto ? 'Apto ' + apto + ' · ' : '') + 'Detalles: ' + String(v.detalles).slice(0, 300));
+  };
+  deVisita(j.visitaData, '');
+  (j.unidades || []).forEach(function (u) { deVisita(u.visitaData, u.apto); });
+  if (!j.visitaData && j.visita) deVisita(j.visita, '');
+  var zonas = {}; lista.forEach(function (f) { zonas[f.zona] = (zonas[f.zona] || 0) + 1; });
+  var filtradas = lista.filter(function (f) { return (!na || secNorm_(f.apto) === na) && (!nz || secNorm_(f.zona).indexOf(nz) >= 0); });
+  var desde = Math.max(0, Number(b.desde) || 0), max = Math.max(1, Math.min(SEC_FOTOS_MAX_, Number(b.max) || SEC_FOTOS_MAX_));
+  var fotos = [];
+  filtradas.slice(desde, desde + max).forEach(function (f, i) {
+    try {
+      var bl = DriveApp.getFileById(f.id).getBlob(), mt = String(bl.getContentType() || 'image/jpeg'), by = bl.getBytes();
+      if (!/^image\/(jpeg|png|gif|webp)$/.test(mt) || by.length > 4.5 * 1024 * 1024) return;
+      fotos.push({ n: desde + i + 1, zona: f.zona, apto: f.apto, fecha: f.fecha, data: 'data:' + mt + ';base64,' + Utilities.base64Encode(by) });
+    } catch (e) { /* foto borrada o sin permiso: se salta */ }
+  });
+  return { ok: true, proyecto: p.nombre, id: p.id, etapa: p.etapa, visita: p.visita, total: lista.length, encontradas: filtradas.length, desde: desde,
+    siguen: Math.max(0, filtradas.length - desde - max), zonas: zonas, problemas: problemas.slice(0, 10), comentarios: comentarios.slice(0, 10), fotos: fotos };
+}
+
+/* ═══ PRESUPUESTO EN PDF (Alma lo manda desde la conversación) ═══
+   El mismo documento que la app imprime (Presupuesto · Spacio AM: ítems por categoría, resumen y total), con las
+   mismas cuentas: mobiliario, fee, diseño de interiores y fotos pro. Sin las fotos del anteproyecto (en la app aún son
+   de muestra) ni las cuentas bancarias (los números de datos.js son de ejemplo): pide el depósito por hola@spacioam.com.
+   Se guarda en «Propiedades/<edificio>/<apto>/03 Presupuesto» con enlace de solo lectura (como las fotos) y vuelve en
+   base64 para que el Hub lo mande por WhatsApp. Solo el presupuesto de un apartamento; el de fases todavía no. */
+function secQ_(n) { return 'Q ' + Math.round(Number(n) || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+function secEsc_(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function secPresCuentas_(j) {
+  var pr = j.presupuesto || {}, hab = Number(j.hab) || 1, items = pr.items || [];
+  var mob = items.reduce(function (a, it) { return a + (Number(it.precio) || 0) * (Number(it.cant) || 0); }, 0);
+  var cobraMob = pr.cobraMobiliario !== false, pct = pr.feePct != null ? Number(pr.feePct) : 10, fee = cobraMob ? mob * pct / 100 : 0;
+  var cobraDis = pr.cobraDiseno !== false && !!j.conAnteproyecto;
+  var disQ = cobraDis ? (pr.disenoQ != null ? Number(pr.disenoQ) : (hab >= 3 ? 2500 : hab === 2 ? 2000 : 1500)) : 0;
+  var fotosUsd = pr.fotosProUsd != null ? Number(pr.fotosProUsd) : (hab >= 3 ? 250 : hab === 2 ? 200 : 150), fotosQ = fotosUsd * 7.75;
+  var resumen = [];
+  if (cobraMob) resumen.push({ k: 'Mobiliario', v: mob });
+  if (cobraMob && fee) resumen.push({ k: 'Fee mobiliario ' + Math.round(pct) + '%', v: fee });
+  if (cobraDis) resumen.push({ k: 'Diseño de interiores', v: disQ });
+  resumen.push({ k: 'Fotos pro ($' + fotosUsd + ')', v: fotosQ });
+  return { resumen: resumen, total: (cobraMob ? mob + fee : 0) + disQ + fotosQ,
+    estado: pr.estado === 'aprobado' ? 'Aprobado por el propietario' : pr.estado === 'enviado' ? 'Enviado · esperando al propietario' : 'Borrador' };
+}
+function secPresupuestoPdf_(b) {
+  var p = secBuscarProyecto_(b.proyecto_id), j = (secEstados_()[p.id] || {}).json || {};
+  var pr = j.presupuesto;
+  if (!pr || !(pr.items || []).length) {
+    var fases = (j.fases || []).some(function (f) { return (f.presupuestos || []).length; });
+    throw new Error(fases ? p.nombre + ' tiene presupuesto por fases; ese todavía no sale en PDF desde Alma (ábrelo en Grow).' : p.nombre + ' todavía no tiene presupuesto en Grow.');
+  }
+  var c = secPresCuentas_(j), cats = {}, orden = [], e = secEsc_;
+  pr.items.forEach(function (it) { var k = String(it.cat || 'General'); if (!cats[k]) { cats[k] = []; orden.push(k); } cats[k].push(it); });
+  var hoy = Utilities.formatDate(new Date(), 'America/Guatemala', 'yyyy-MM-dd');
+  var gris = '#6F6867', tinta = '#3E3F3F', eb = 'font-size:8.5px;letter-spacing:2.5px;text-transform:uppercase;color:' + gris + ';';
+  var td = 'font-size:10.5px;padding:5px 8px;border-bottom:1px solid #EEEBE6;vertical-align:top;';
+  /* Tablas en vez de flex o grid: el conversor de HTML a PDF de Google solo respeta lo básico. */
+  var html = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Arial,Helvetica,sans-serif;font-size:10.5px;color:' + tinta + ';margin:0">' +
+    '<table style="width:100%;border-collapse:collapse;border-bottom:1px solid ' + tinta + ';margin-bottom:20px"><tr>' +
+    '<td style="padding:0 0 12px;vertical-align:bottom"><div style="' + eb + 'margin-bottom:6px">Presupuesto · Spacio AM</div>' +
+    '<div style="font-family:Georgia,serif;font-size:28px;line-height:1.05">' + e(p.nombre) + '</div></td>' +
+    '<td style="padding:0 0 12px;text-align:right;vertical-align:bottom;font-size:9.5px;color:' + gris + ';line-height:1.6">' +
+    '<b style="color:' + tinta + ';font-size:10.5px">' + e(p.edificio) + (p.apto && p.apto !== '—' ? ' · Apto ' + e(p.apto) : '') + '</b><br>' +
+    (p.dueno && p.dueno !== 'Propietario' ? e(p.dueno) + '<br>' : '') + e(hoy) + '</td></tr></table>';
+  orden.forEach(function (k) {
+    var sub = cats[k].reduce(function (a, it) { return a + (Number(it.precio) || 0) * (Number(it.cant) || 0); }, 0);
+    html += '<div style="page-break-inside:avoid;margin:0 0 16px"><div style="font-family:Georgia,serif;font-size:16px;margin:0 0 4px">' + e(k) +
+      ' <span style="' + eb + '">' + cats[k].length + (cats[k].length === 1 ? ' ítem' : ' ítems') + '</span></div>' +
+      '<table style="width:100%;border-collapse:collapse"><tr>' +
+      ['Ítem', 'Precio', 'Cant.', 'Total'].map(function (h, i) { return '<td style="' + eb + 'padding:4px 8px;border-bottom:1px solid ' + tinta + ';' + (i ? 'text-align:right;width:' + (i === 2 ? 12 : 18) + '%' : '') + '">' + h + '</td>'; }).join('') + '</tr>' +
+      cats[k].map(function (it) {
+        var pz = Number(it.precio) || 0, ct = Number(it.cant) || 0;
+        return '<tr><td style="' + td + '">' + e(it.item) + '</td><td style="' + td + 'text-align:right">' + secQ_(pz) + '</td><td style="' + td + 'text-align:right">' + ct + '</td><td style="' + td + 'text-align:right">' + secQ_(pz * ct) + '</td></tr>';
+      }).join('') +
+      '<tr><td colspan="3" style="padding:7px 8px 0;' + eb + '">Subtotal ' + e(k) + '</td><td style="font-size:10.5px;padding:7px 8px 0;text-align:right;font-weight:bold">' + secQ_(sub) + '</td></tr></table></div>';
+  });
+  html += '<table style="width:100%;border-collapse:collapse;margin-top:8px;page-break-inside:avoid"><tr>' +
+    '<td style="vertical-align:top;padding-right:20px;font-size:9.5px;color:' + gris + ';line-height:1.6"><div style="' + eb + 'margin-bottom:6px">Condiciones</div>' +
+    '<p style="margin:0 0 6px">Precios en quetzales, referenciales al día de emisión; pueden variar según disponibilidad del proveedor.</p>' +
+    '<p style="margin:0 0 6px">El mobiliario se compra con el depósito del propietario; cada factura queda registrada en tu portal.</p>' +
+    '<p style="margin:0 0 6px">Estado: ' + e(c.estado) + '.</p>' +
+    '<p style="margin:0">Para los datos de depósito escribe a hola@spacioam.com indicando «' + e(p.nombre) + '».</p></td>' +
+    '<td style="width:44%;vertical-align:top;background:' + tinta + ';color:#FFFFFF;padding:16px 18px"><div style="' + eb + 'color:#D8D4CE;margin-bottom:8px">Resumen</div>' +
+    '<table style="width:100%;border-collapse:collapse;color:#FFFFFF">' +
+    c.resumen.map(function (r) { return '<tr><td style="font-size:10.5px;padding:3px 0">' + e(r.k) + '</td><td style="font-size:10.5px;padding:3px 0;text-align:right">' + secQ_(r.v) + '</td></tr>'; }).join('') +
+    '<tr><td style="padding:10px 0 0;border-top:1px solid #8A8A8A;font-size:9px;letter-spacing:2.5px;text-transform:uppercase">Total</td>' +
+    '<td style="padding:10px 0 0;border-top:1px solid #8A8A8A;text-align:right;font-size:16px">' + secQ_(c.total) + '</td></tr></table></td></tr></table>' +
+    '<div style="margin-top:18px;' + eb + '">Spacio AM · spacioam.com · ' + e(p.nombre) + ' · ' + e(hoy) + '</div></body></html>';
+  var nombre = ('Presupuesto ' + p.nombre + ' ' + hoy).replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() + '.pdf';
+  var pdf = Utilities.newBlob(html, 'text/html', 'presupuesto.html').getAs('application/pdf').setName(nombre);
+  var url = '', compartido = false;
+  try {
+    var r = uploadFile(Utilities.base64Encode(pdf.getBytes()), nombre, 'application/pdf',
+      'Propiedades/' + String(p.edificio || p.nombre).replace(/\//g, '-') + '/' + String(p.apto || 'unico').replace(/\//g, '-') + '/03 Presupuesto');
+    url = r.verUrl; compartido = !!r.compartido;
+  } catch (eD) { /* sin Drive el PDF igual vuelve al Hub */ }
+  return { ok: true, proyecto: p.nombre, id: p.id, items: pr.items.length, total: secQ_(c.total), estado: c.estado, resumen: c.resumen.map(function (r) { return r.k + ': ' + secQ_(r.v); }),
+    nombre: nombre, url: url, compartido: compartido, pdf_b64: Utilities.base64Encode(pdf.getBytes()) };
 }
 
 /* ═══ Búsqueda flexible (copia de buscar.js del Hub) ═══ */
