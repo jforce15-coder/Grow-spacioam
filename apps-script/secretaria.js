@@ -362,7 +362,8 @@ function secPresPie_(p, estado, resumen, total, hoy) {
     '<td style="vertical-align:top;padding-right:20px;font-size:9.5px;color:' + SEC_GRIS_ + ';line-height:1.6"><div style="' + SEC_EB_ + 'margin-bottom:6px">Condiciones</div>' +
     '<p style="margin:0 0 6px">Precios en quetzales, referenciales al día de emisión; pueden variar según disponibilidad del proveedor.</p>' +
     '<p style="margin:0 0 6px">El mobiliario se compra con el depósito del propietario; cada factura queda registrada en tu portal.</p>' +
-    (estado ? '<p style="margin:0 0 6px">Estado: ' + e(estado) + '.</p>' : '') +
+    /* «Borrador» es un estado interno: el PDF va al propietario y no lo muestra (6-nov, Juan). */
+    (estado && estado !== 'Borrador' ? '<p style="margin:0 0 6px">Estado: ' + e(estado) + '.</p>' : '') +
     '<p style="margin:0">Para los datos de depósito escribe a hola@spacioam.com indicando «' + e(p.nombre) + '».</p></td>' +
     '<td style="width:44%;vertical-align:top;background:' + SEC_TINTA_ + ';color:#FFFFFF;padding:16px 18px"><div style="' + SEC_EB_ + 'color:#D8D4CE;margin-bottom:8px">Resumen</div>' +
     '<table style="width:100%;border-collapse:collapse;color:#FFFFFF">' +
@@ -420,7 +421,8 @@ function secPresPdfConsolidado_(p, j, lista, hoy) {
     (pr.items || []).forEach(function (it) { var k = String(it.cat || 'General'); if (cats[k] == null) { cats[k] = 0; orden.push(k); } cats[k] += (Number(it.precio) || 0) * (Number(it.cant) || 0); });
   });
   var aptos = lista.filter(function (pr) { return pr.alcance === 'apto' && pr.apto; }).map(function (pr) { return pr.apto; });
-  var fases = {}; aptos.forEach(function (a) { var u = (j.unidades || []).filter(function (x) { return secApto_(x.apto) === secApto_(a); })[0]; if (u && u.fase) fases[u.fase] = 1; });
+  /* La fase: la que trae cada presupuesto (la de la hoja de donde se importó) y, si no, la de su unidad. */
+  var fases = {}; lista.forEach(function (pr) { var u = pr.apto ? (j.unidades || []).filter(function (x) { return secApto_(x.apto) === secApto_(pr.apto); })[0] : null, f = pr.fase || (u && u.fase) || ''; if (f) fases[f] = 1; });
   var fase = Object.keys(fases).length === 1 ? Object.keys(fases)[0] : '';
   var html = secPresCabeza_(p, 'Presupuesto consolidado · Spacio AM' + (fase ? ' · ' + fase : ''), p.edificio + ' · ' + lista.length + (aptos.length === lista.length ? ' apartamentos' : ' presupuestos'), hoy);
   html += secPresTabla_(aptos.length === lista.length ? 'Por apartamento' : 'Por presupuesto', null, ['', 'Mobiliario', 'Fee', 'Diseño', 'Fotos pro', 'Total'], filas, ['Total de los ' + lista.length, secQ_(tot.total)]);
@@ -555,8 +557,8 @@ function secPresPlantilla_(b, j, hab) {
     return Object.assign(base, { items: items, fuente: 'lista de ítems' });
   }
   if (!b.hoja) throw new Error('Falta la plantilla: el enlace de la hoja (hoja), un presupuesto del proyecto (desde) o los ítems.');
-  var hj = secPresHoja_(b.hoja, b.pestana), ps = secPresParse_(hj.rows), rs = ps.resumen;
-  return Object.assign(base, { items: ps.items, avisos: ps.avisos, fuente: 'Google Sheets «' + hj.titulo + '» · ' + hj.pestana,
+  var hj = secPresHoja_(b.hoja, b.pestana), ps = secPresParse_(hj.rows), rs = ps.resumen, mf = String(hj.titulo).match(/\bfase\s*(\d+)/i);
+  return Object.assign(base, { items: ps.items, avisos: ps.avisos, fuente: 'Google Sheets «' + hj.titulo + '» · ' + hj.pestana, fase: mf ? 'Fase ' + mf[1] : '',
     feePct: ps.feePct != null ? ps.feePct : 10, cobraDiseno: !!rs.diseno, disenoQ: rs.diseno || base.disenoQ,
     /* Como la app: las fotos se guardan en dólares (× 7.75) redondeadas a centavos; Q500 → $64.52 = Q500.03 (en pantalla y en el PDF, Q 500). */
     fotosProUsd: rs.fotos != null ? Math.round(rs.fotos / SEC_TC_ * 100) / 100 : base.fotosProUsd,
@@ -579,14 +581,15 @@ function secPresupuestoImportar_(b) {
     /* Igual que normalizarPres de la app: la lista manda y `presupuesto` es el activo de la lista. */
     if (!j.presupuestos || !j.presupuestos.length) j.presupuestos = j.presupuesto ? [j.presupuesto] : [];
     j.presupuestos.forEach(function (x, i) { if (!x.id) x.id = 'pr' + (i + 1) + '-' + Math.random().toString(36).slice(2, 6); if (!x.nombre) x.nombre = i === 0 ? 'Presupuesto general' : 'Presupuesto ' + (i + 1); if (!x.alcance) x.alcance = 'proyecto'; });
-    var creados = [], ya = [], vistos = {};
+    var creados = [], ya = [], vistos = {}, cambiados = 0;
     aptos.forEach(function (a) {
       var u = unidades.filter(function (x) { return secApto_(x.apto) === secApto_(a); })[0], apto = u ? String(u.apto) : a, nombre = prefijo + ' ' + apto;
       if (vistos[secApto_(apto)]) return; vistos[secApto_(apto)] = 1;
       var hay = j.presupuestos.filter(function (x) { return secNorm_(x.nombre) === secNorm_(nombre); })[0];
+      if (hay && pl.fase && hay.fase !== pl.fase) { hay.fase = pl.fase; cambiados++; }
       if (hay) { ya.push({ id: hay.id, nombre: hay.nombre, apto: hay.apto || apto, total: secQ_(secPresCuentas_(j, hay).total) }); return; }
       var nuevo = { id: 'pr-' + Math.random().toString(36).slice(2, 8), nombre: nombre, alcance: 'apto', apto: apto, estado: 'borrador',
-        cobraMobiliario: true, feePct: pl.feePct, cobraDiseno: pl.cobraDiseno, disenoQ: pl.disenoQ, fotosProUsd: pl.fotosProUsd, depositos: [],
+        fase: pl.fase || undefined, cobraMobiliario: true, feePct: pl.feePct, cobraDiseno: pl.cobraDiseno, disenoQ: pl.disenoQ, fotosProUsd: pl.fotosProUsd, depositos: [],
         log: [{ fecha: ahora, por: por, nota: 'Importado por Alma desde ' + pl.fuente }],
         items: pl.items.map(function (it) { var o = { cat: it.cat, item: it.item, precio: it.precio, cant: it.cant }; if (it.proveedor) o.proveedor = it.proveedor; return o; }) };
       j.presupuestos.push(nuevo);
@@ -594,7 +597,7 @@ function secPresupuestoImportar_(b) {
     });
     j.presIdx = Math.min(Math.max(Number(j.presIdx) || 0, 0), j.presupuestos.length - 1);
     j.presupuesto = j.presupuestos[j.presIdx];
-    if (!creados.length) { res = { creados: creados, ya: ya }; break; }
+    if (!creados.length && !cambiados) { res = { creados: creados, ya: ya }; break; }
     var r = saveState(p.id, e.v, JSON.stringify(j), por);
     if (r && r.saved) res = { creados: creados, ya: ya, version: r.version };
   }
