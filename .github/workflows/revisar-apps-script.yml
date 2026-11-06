@@ -73,3 +73,7 @@ jobs:
             if [ -z "$ahora" ]; then echo "✓ $dir sin funciones repetidas"; fi
           done < <(find . -path ./.git -prune -o -path '*/archivo/*' -prune -o -name appsscript.json -print0)
           exit $fallo
+
+      # 5-nov: Alma dijo que las fotos de Mónaco «no existen» porque faltaba la hoja 30_FOTOS; estaban en el JSON.
+      - name: Fotos de la visita, sin la hoja 30_FOTOS y por apartamento (dobles)
+        run: node .github/fotos-visita.js apps-script

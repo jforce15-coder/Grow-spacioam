@@ -102,7 +102,12 @@ function secTocarEstado_(pid, fn, por) {
 }
 
 function secBuscarProyecto_(id) {
-  var pid = String(id || ''), p = secProyectos_().filter(function (x) { return x.id === pid; })[0];
+  var pid = String(id || '').trim(), todos = secProyectos_(), p = todos.filter(function (x) { return x.id === pid; })[0];
+  if (!p && pid) {   // «Mónaco» o «monaco» en vez de p…: vale si un solo proyecto se llama así (sin tildes ni mayúsculas)
+    var n = secNorm_(pid), mismos = todos.filter(function (x) { return secNorm_(x.nombre) === n || secNorm_((x.edificio + ' ' + x.apto).trim()) === n; });
+    if (mismos.length === 1) p = mismos[0];
+    else if (mismos.length > 1) throw new Error('Hay ' + mismos.length + ' proyectos que se llaman ' + pid + ': ' + mismos.map(function (x) { return x.id + ' (' + x.nombre + ')'; }).join(', ') + '. Usa su id.');
+  }
   if (!p) throw new Error('No existe el proyecto ' + pid + '. Búscalo primero con el resumen.');
   return p;
 }
@@ -234,6 +239,30 @@ function secVisita_(b) {
    archivos son de esta cuenta y el Hub no siempre puede abrirlos. Con las fotos van los problemas y comentarios de la
    visita, para que Alma recomiende con contexto. */
 var SEC_FOTOS_MAX_ = 6;
+/* 30_FOTOS está en el esquema desde el 27-oct, pero la hoja no se creó (setup() no se volvió a correr) y readAll_ tiraba
+   «No existe la hoja: 30_FOTOS»: el 5-nov Alma le dijo a Juan que las fotos de Mónaco no estaban, y eran 272 en el JSON.
+   Sin la hoja, las fotos salen igual del JSON de la visita y de cada unidad. */
+function secFilasSiHay_(nombre) { return ss_().getSheetByName(nombre) ? readAll_(nombre) : []; }
+/* En un edificio, una línea por apartamento visitado: cuántas fotos, qué le falta por categoría (con las palabras de la
+   app: «sin nada», o lo que falta) y sus problemas. Con 30 apartamentos y de a 6 fotos, Alma elige primero con esto y
+   después mira las fotos de los que importan. Texto corto: el Hub manda las fotos con a lo mucho unos miles de letras. */
+function secAptosVisita_(j) {
+  return (j.unidades || []).map(function (u) {
+    var v = u.visitaData || {}, fotos = (v.fotosLibres || []).length, cats = v.cats || {}, ks = Object.keys(cats), falta = [];
+    Object.keys(v.fotosZona || {}).forEach(function (z) { fotos += (v.fotosZona[z] || []).length; });
+    var nada = 0;
+    ks.forEach(function (k) {
+      var c = cats[k] || {}, f = Object.keys(c.faltan || {}).filter(function (x) { return c.faltan[x]; });
+      if (c.estado === 'nada') { nada++; falta.push(k + ': sin nada'); }
+      else if (c.estado !== 'completo') falta.push(k + ': ' + (f.length ? f.join(', ') : 'falta'));
+    });
+    var mant = (v.mant || v.mantenimiento || []).map(function (m) { return String(m.titulo || 'Problema') + ((m.fotos || []).length ? ' (' + m.fotos.length + ' fotos)' : ''); });
+    if (!fotos && !ks.length && !mant.length && !v.fecha) return null;
+    var det = String(v.detalles || '').trim();
+    return String(u.apto || '?') + ' · ' + fotos + ' fotos · ' + (!ks.length ? 'sin inventario' : nada === ks.length ? 'sin nada en las ' + nada + ' categorías' : falta.length ? 'falta ' + falta.join('; ') : 'completo') +
+      (mant.length ? ' · PROBLEMAS: ' + mant.join('; ') : '') + (det ? ' · nota: ' + det.slice(0, 80) : '');
+  }).filter(Boolean);
+}
 function secFotoId_(u) { var m = String(u || '').match(/[?&]id=([\w-]{10,})|\/d\/([\w-]{10,})/); return m ? (m[1] || m[2]) : ''; }
 function secFotos_(b) {
   var p = secBuscarProyecto_(b.proyecto_id), j = (secEstados_()[p.id] || {}).json || {}, lista = [], vistos = {};
@@ -242,7 +271,7 @@ function secFotos_(b) {
     if (!id || vistos[id]) return; vistos[id] = 1;
     lista.push({ id: id, zona: String(zona || 'Sin zona'), apto: String(apto || ''), fecha: fecha instanceof Date ? Utilities.formatDate(fecha, 'America/Guatemala', 'yyyy-MM-dd') : String(fecha || '').slice(0, 10) });
   };
-  readAll_('30_FOTOS').filter(function (f) { return String(f.proyecto_id) === p.id; })
+  secFilasSiHay_('30_FOTOS').filter(function (f) { return String(f.proyecto_id) === p.id; })
     .forEach(function (f) { poner(String(f.file_id || '') || secFotoId_(f.url), f.zona, f.apartamento, f.fecha); });
   var problemas = [], comentarios = [];
   var deVisita = function (v, apto) {
@@ -270,8 +299,10 @@ function secFotos_(b) {
       fotos.push({ n: desde + i + 1, zona: f.zona, apto: f.apto, fecha: f.fecha, data: 'data:' + mt + ';base64,' + Utilities.base64Encode(by) });
     } catch (e) { /* foto borrada o sin permiso: se salta */ }
   });
-  return { ok: true, proyecto: p.nombre, id: p.id, etapa: p.etapa, visita: p.visita, total: lista.length, encontradas: filtradas.length, desde: desde,
+  var aptos = secAptosVisita_(j), r = { ok: true, proyecto: p.nombre, id: p.id, etapa: p.etapa, visita: p.visita, total: lista.length, encontradas: filtradas.length, desde: desde,
     siguen: Math.max(0, filtradas.length - desde - max), zonas: zonas, problemas: problemas.slice(0, 10), comentarios: comentarios.slice(0, 10), fotos: fotos };
+  if (aptos.length && !na && !desde) { r.aptos = aptos; r.nota = 'Edificio: en aptos va cada apartamento visitado (fotos, qué le falta, problemas). Para ver las fotos de uno, pide con apto.'; }
+  return r;
 }
 
 /* ═══ PRESUPUESTO EN PDF (Alma lo manda desde la conversación) ═══
