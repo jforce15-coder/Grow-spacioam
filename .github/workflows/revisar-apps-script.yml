@@ -77,3 +77,7 @@ jobs:
       # 5-nov: Alma dijo que las fotos de Mónaco «no existen» porque faltaba la hoja 30_FOTOS; estaban en el JSON.
       - name: Fotos de la visita, sin la hoja 30_FOTOS y por apartamento (dobles)
         run: node .github/fotos-visita.js apps-script
+
+      # 6-nov: el equipamiento de MONACO como un presupuesto por apartamento (6 aptos), sin duplicar, y sus PDF.
+      - name: Presupuesto por apartamento, importar sin duplicar ni pisar la app, y un PDF por presupuesto (dobles)
+        run: node .github/presupuesto-unidades.js apps-script
