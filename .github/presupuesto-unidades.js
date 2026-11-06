@@ -10,6 +10,9 @@
    4. Si alguien guardó en medio (conflicto de versión), vuelve a leer y no pisa lo que se editó en la app.
    5. Un apartamento que no está en el proyecto no crea ninguno.
    6. PDF: uno por presupuesto (en la carpeta de su apartamento) y el consolidado de los 6; sin ids sale el activo, como antes.
+   7. Lo real del 6-nov: las unidades dicen «Fase 1» y los 6 ya estaban importados sin fase. Al importar otra vez, cada
+      presupuesto toma la fase del título de la hoja («… Fase 2»), sin duplicar; el consolidado dice «Fase 2» y ningún
+      PDF para el propietario dice «Borrador».
    node .github/presupuesto-unidades.js [carpeta apps-script] */
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const DIR = process.argv[2] || path.join(__dirname, '..', 'apps-script');
@@ -178,5 +181,23 @@ const IMPORTAR = { proyecto_id: 'Mónaco', aptos: 'B5, A4, A1, B1, A3 y B3', hoj
   ok(/No encuentro|no encuentro/.test(err(() => c.R('secPresupuestoPdf_', { proyecto_id: PID, aptos: 'D9' }))), 'un apartamento sin presupuesto lo dice');
   const api = JSON.parse(c.R('secretariaApi_', { action: '__secretaria', token: 'x', op: 'presupuesto_importar', proyecto_id: PID, aptos: 'B5' }));
   ok(api.ok === false && api.error === 'token', 'la puerta sigue pidiendo el token');
+}
+/* ── 7. Unidades en «Fase 1», presupuestos ya importados sin fase ── */
+{
+  const j0 = monaco(); j0.unidades.forEach(u => { u.fase = 'Fase 1'; });
+  const c = caja({ json: j0 }); c.R('secPresupuestoImportar_', IMPORTAR);
+  const j1 = c.J(); j1.presupuestos.forEach(x => { delete x.fase; }); c.est.json = JSON.stringify(j1);   // como quedaron el 6-nov
+  const v0 = c.est.v, r = c.R('secPresupuestoImportar_', IMPORTAR), j = c.J();
+  ok(r.ok && r.creados.length === 0 && r.ya_existian.length === 6 && j.presupuestos.length === 7 && c.est.v === v0 + 1, 'otra vez: no duplica y guarda una vez para anotar la fase');
+  ok(j.presupuestos.slice(1).every(x => x.fase === 'Fase 2') && !j.presupuestos[0].fase, 'cada «Equipamiento» toma la Fase 2 de la hoja; el general no cambia');
+  const v1 = c.est.v; c.R('secPresupuestoImportar_', IMPORTAR);
+  ok(c.est.v === v1, 'una tercera vez ya no guarda nada');
+  const ids = j.presupuestos.slice(1).map(x => x.id), n = c.subidos.length;
+  const pd = c.R('secPresupuestoPdf_', { proyecto_id: PID, presupuesto_ids: ids, consolidado: true }), htmls = c.subidos.slice(n).map(x => x.html);
+  ok(pd.consolidado.fase === 'Fase 2' && /Fase 2/.test(htmls[6]) && !/Fase 1/.test(htmls[6]) && /Fase 2/.test(pd.consolidado.nombre), 'el consolidado dice «Fase 2» aunque las unidades digan «Fase 1»');
+  ok(htmls.length === 7 && htmls.every(h => !/Borrador/.test(h)), 'ningún PDF para el propietario dice «Borrador»');
+  const g = caja(), gj = g.J(); gj.presupuesto.estado = 'enviado'; g.est.json = JSON.stringify(gj);
+  g.R('secPresupuestoPdf_', { proyecto_id: PID });
+  ok(/Estado: Enviado · esperando al propietario/.test(g.subidos[0].html), 'los otros estados sí salen (Enviado)');
 }
 process.exit(fallo);
