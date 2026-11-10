@@ -81,3 +81,5 @@ jobs:
       # 6-nov: el equipamiento de MONACO como un presupuesto por apartamento (6 aptos), sin duplicar, y sus PDF.
       - name: Presupuesto por apartamento, importar sin duplicar ni pisar la app, y un PDF por presupuesto (dobles)
         run: node .github/presupuesto-unidades.js apps-script
+      - name: "Datos del cliente: la llave del enlace (y la del primer envío si el proyecto no tiene)"
+        run: node .github/datos-llave.js apps-script

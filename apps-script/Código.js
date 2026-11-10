@@ -254,12 +254,34 @@ function datosClientePasa_(p) {
     if (!k) return false;
     var est = (getStates('', [pid.slice(6)]).estados || [])[0], j = {};
     try { j = JSON.parse((est && est.json) || '{}') || {}; } catch (e) {}
-    return !!j.datosToken && String(j.datosToken) === k;
+    if (j.datosToken) return String(j.datosToken) === k;
+    return datosAdoptarLlave_(pid.slice(6), est, j, k);
   }
   if (a === 'uploadFile') return /^Propiedades\/[^\/]+(\/[^\/]+)?\/00 Datos del cliente$/.test(String(p.subfolder || '')) && String(p.b64 || '').length < 12000000;
   if (a === 'notify') {
     var to = Array.isArray(p.to) ? p.to : [p.to];
     return to.length === 1 && String(to[0] || '').trim().toLowerCase() === 'hola@spacioam.com';
+  }
+  return false;
+}
+/* 10-nov-2026 · Amalfi 808: la llave del enlace (datosToken) se creó en la pantalla de Grow y nunca se guardó, y el
+   formulario del cliente decía «No pudimos enviar tus datos». Si el proyecto NO tiene llave guardada, la del primer
+   envío queda como la del proyecto (y desde ahí manda esa). Solo para proyectos de los últimos 30 días que todavía no
+   tienen datos recibidos (fila DATOS-), y con una llave con la forma de las que crea la app. El equipo igual revisa
+   los datos antes de aplicarlos. */
+var DATOS_ADOPTAR_DIAS_ = 30;
+function datosAdoptarLlave_(id, est, j, k) {
+  if (!est || !/^[a-z0-9]{8,24}$/.test(k)) return false;
+  var desde = Date.parse(String(j.creado || est.actualizado || '').slice(0, 10));
+  if (!desde || (Date.now() - desde) > DATOS_ADOPTAR_DIAS_ * 86400000) return false;
+  if ((getStates('', ['DATOS-' + id]).estados || []).length) return false;
+  for (var intento = 0; intento < 3; intento++) {
+    j.datosToken = k;
+    var r = saveState(id, est.version, JSON.stringify(j), 'cliente · llave del enlace');
+    if (r && r.saved) { try { cacheDrop_(); } catch (e) {} return true; }
+    est = (getStates('', [id]).estados || [])[0]; if (!est) return false;
+    j = {}; try { j = JSON.parse(est.json || '{}') || {}; } catch (e) {}
+    if (j.datosToken) return String(j.datosToken) === k;
   }
   return false;
 }
