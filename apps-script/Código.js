@@ -67,7 +67,9 @@ var SCHEMA = {
   /* Estado completo del proyecto (autoguardado colaborativo). El JSON se parte
      en trozos de 45 000 caracteres porque una celda admite 50 000. Cada trozo
      lleva el prefijo "~" para que rowToObj_ no intente parsearlo. */
-  "31_ESTADO_PROYECTO": ["proyecto_id","version","actualizado","actualizado_por","json_1","json_2","json_3","json_4","json_5","json_6","json_7","json_8"]
+  "31_ESTADO_PROYECTO": ["proyecto_id","version","actualizado","actualizado_por","json_1","json_2","json_3","json_4","json_5","json_6","json_7","json_8"],
+  /* Enlaces cortos (grow.spacioam.com/k7q2m → enlace largo). Ver enlaces.js. No va en getAll. */
+  "40_ENLACES": ["codigo","url","app","creado","por","clics","ultimo"]
 };
 var ESTADO_SHEET = "31_ESTADO_PROYECTO", ESTADO_CHUNK = 45000, ESTADO_CHUNKS = 8;
 
@@ -201,7 +203,7 @@ function route(e) {
     var p = (e && e.postData && e.postData.contents) ? JSON.parse(e.postData.contents) : (e ? e.parameter : {});
     var __diag = accesosDiag_(p) || cupoDiag_(p) || duenosDiag_(p) || secretariaApi_(p); if (__diag) return __diag;   // fase 1b: resumen de accesos (robot)
     var __ses = sesionDe_(p); registrarAcceso_(p.action, __ses ? true : esRobot_(p) ? 'r' : false);
-    var __bloq = datosClientePasa_(p) ? null : exigirSesion_(p.action, !!__ses, p, ['ping']); if (__bloq) return __bloq;   // fase 1c: solo bloquea con SESION_EXIGIR = 1
+    var __bloq = datosClientePasa_(p) ? null : exigirSesion_(p.action, !!__ses, p, ['ping', 'enlace']); if (__bloq) return __bloq;   // fase 1c: solo bloquea con SESION_EXIGIR = 1
     var a = p.action, r;
     switch (a) {
       case "getAll":     r = apiGetAll(p.fresh === true || p.fresh === "true"); if (__ses) cerrarDocsUnaVez_(); break;
@@ -232,6 +234,9 @@ function route(e) {
       case "importSheet": r = importSheet(p.id, p.gid); break;
       /* DPI y documentos del cliente: privados en Drive; solo el equipo con sesión los ve (fase 1c lo exige). */
       case "verDoc":     r = verDocCliente_(p.fileId); break;
+      /* Enlaces cortos (enlaces.js): «acortar» pide sesión; «enlace» es pública (la usa 404.html) y solo devuelve el enlace. */
+      case "acortar":    r = acortarEnlace_(p.url, __ses, p); break;
+      case "enlace":     r = abrirEnlace_(p.codigo); break;
       default: return out({ ok:false, error:"Acción desconocida: " + a });
     }
     return out({ ok:true, data:r });
@@ -352,7 +357,7 @@ function apiGetAll(fresh) {
   ss_().getSheets().forEach(function (sh) {
     var name = sh.getName();
     var cols = SCHEMA[name];
-    if (!cols) return;
+    if (!cols || name === "40_ENLACES") return;   // los enlaces cortos no viajan al arranque de la app
     var last = sh.getLastRow();
     if (last < 2) { out[name] = []; return; }
     var data = sh.getRange(2, 1, last - 1, cols.length).getValues();
@@ -363,7 +368,7 @@ function apiGetAll(fresh) {
     }
     out[name] = rows;
   });
-  Object.keys(SCHEMA).forEach(function (n) { if (!out[n]) out[n] = []; });
+  Object.keys(SCHEMA).forEach(function (n) { if (!out[n] && n !== "40_ENLACES") out[n] = []; });
   try { c.put(CACHE_KEY, JSON.stringify(out), 21600); } catch (e) { /* payload > 100 KB: sin caché */ }
   return out;
 }

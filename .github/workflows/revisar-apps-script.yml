@@ -83,3 +83,6 @@ jobs:
         run: node .github/presupuesto-unidades.js apps-script
       - name: "Datos del cliente: la llave del enlace (y la del primer envío si el proyecto no tiene)"
         run: node .github/datos-llave.js apps-script
+      # Hub #488 · T1: enlaces cortos grow.spacioam.com/<código> (hoja 40_ENLACES, ops «acortar» y «enlace»).
+      - name: "Enlaces cortos: mismo enlace mismo código, choques, «enlace» pública y «acortar» con sesión (dobles)"
+        run: node .github/enlaces.js apps-script
