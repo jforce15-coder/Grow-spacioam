@@ -84,5 +84,6 @@ jobs:
       - name: "Datos del cliente: la llave del enlace (y la del primer envío si el proyecto no tiene)"
         run: node .github/datos-llave.js apps-script
       # Hub #488 · T1: enlaces cortos grow.spacioam.com/<código> (hoja 40_ENLACES, ops «acortar» y «enlace»).
-      - name: "Enlaces cortos: mismo enlace mismo código, choques, «enlace» pública y «acortar» con sesión (dobles)"
+      # Hub #488 · T2: la secretaria del Hub pide el código a Grow (op «acortar» de la puerta) para que salga con grow.spacioam.com.
+      - name: "Enlaces cortos: mismo enlace mismo código, choques, «enlace» pública, «acortar» con sesión y por la secretaria (dobles)"
         run: node .github/enlaces.js apps-script

@@ -5,6 +5,8 @@
    3. «enlace» con un código válido devuelve solo el enlace y suma un clic; uno raro o que no existe da error y nada más.
    4. «acortar» sin sesión se rechaza (también con SESION_EXIGIR = 1); «enlace» sin sesión pasa.
    5. Un enlace de otro dominio no se acorta.
+   6. La puerta de la secretaria (op «acortar», la usa el Hub, #488 T2): con su token da el mismo código que «acortar»,
+      solo para grow.spacioam.com y Google Drive/Docs; sin token no escribe nada.
    node .github/enlaces.js [carpeta apps-script] */
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const DIR = process.argv[2] || path.join(__dirname, '..', 'apps-script');
@@ -137,5 +139,22 @@ const SES = 'firmada';
 { // La hoja está en el esquema: setup() la crea como las demás.
   const c = caja();
   ok(c.ctx.SCHEMA['40_ENLACES'] && c.ctx.SCHEMA['40_ENLACES'].length === 7, '40_ENLACES está en el esquema (setup la crea)'); }
+
+{ // 6. La puerta de la secretaria: el Hub pide el código de algo que nace en Grow.
+  const c = caja();
+  vm.runInContext(fs.readFileSync(path.join(DIR, 'secretaria.js'), 'utf8'), c.ctx, { filename: 'secretaria.js' });
+  c.ctx.SEC_HASH_ = require('crypto').createHash('sha256').update('token-de-prueba').digest('hex');
+  const sec = b => JSON.parse(c.ctx.secretariaApi_(Object.assign({ action: '__secretaria', op: 'acortar' }, b)).getContent());
+  const r1 = sec({ token: 'token-de-prueba', url: LARGO, por: 'Juan' }), r2 = sec({ token: 'token-de-prueba', url: LARGO });
+  ok(r1.ok && ABC.test(r1.codigo) && r1.corto === 'https://grow.spacioam.com/' + r1.codigo && r2.codigo === r1.codigo, 'secretaria «acortar»: grow.spacioam.com/<código> y el mismo enlace da el mismo código (' + r1.corto + ')');
+  const ses = c.api({ action: 'acortar', url: LARGO, session: SES });
+  ok(ses.ok && ses.data.codigo === r1.codigo && c.filas().length === 2, '…el mismo código que la op «acortar» de la app: una sola fila');
+  ok(c.filas()[1][4] === 'Alma · Juan', 'la fila dice que lo pidió Alma (y para quién)');
+  const pdf = sec({ token: 'token-de-prueba', url: 'https://drive.google.com/file/d/1AbCdEfGhIjKlMn/view' });
+  ok(pdf.ok && ABC.test(pdf.codigo), 'un PDF de Drive del presupuesto también se acorta');
+  const otro = sec({ token: 'token-de-prueba', url: 'https://hub.spacioam.com/?conv=123456789012345678901234567890' });
+  ok(otro.ok === false && c.filas().length === 3, 'un enlace de otra app (el Hub) no se acorta con grow.spacioam.com');
+  const sinTok = sec({ token: 'otro', url: LARGO + 'zz' });
+  ok(sinTok.ok === false && sinTok.error === 'token' && c.filas().length === 3, 'sin el token de la secretaria no escribe nada'); }
 
 process.exit(fallo);

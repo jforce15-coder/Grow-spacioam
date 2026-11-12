@@ -45,6 +45,11 @@ function enlaceCodigoNuevo_(usados) {
 /* Op «acortar»: { url } → { codigo, corto }. */
 function acortarEnlace_(url, ses, body) {
   if (!ses && !esRobot_(body)) throw new Error('Para acortar un enlace hace falta iniciar sesión.');
+  return enlaceGuardar_(url, ses ? String(ses.email || ses.nombre || 'sesión') : 'robot');
+}
+
+/* El acortador en sí (lo usan la op «acortar» y la puerta de la secretaria, secretaria.js): mismo enlace, mismo código. */
+function enlaceGuardar_(url, por) {
   var u = enlaceUrlValida_(url);
   if (!u) throw new Error('Ese enlace no se puede acortar: solo los de grow.spacioam.com o de Google Drive.');
   var lock = LockService.getScriptLock();
@@ -58,7 +63,8 @@ function acortarEnlace_(url, ses, body) {
       usados[c] = true;
     }
     var codigo = enlaceCodigoNuevo_(usados), fila = sh.getLastRow() + 1;
-    var por = ses ? String(ses.email || ses.nombre || 'sesión') : 'robot';
+    por = String(por || 'robot').slice(0, 80);
+    if (/^[=+\-@]/.test(por)) por = "'" + por;   // lo que viene de afuera nunca se guarda como fórmula
     sh.getRange(fila, 1).setNumberFormat('@');   // el código como texto: «22345» o «3e222» no se vuelven número
     sh.getRange(fila, 1, 1, 7).setValues([[codigo, u, 'grow', new Date().toISOString(), por, 0, '']]);
     return { codigo: codigo, corto: ENLACES_BASE_ + codigo };
