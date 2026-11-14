@@ -2,7 +2,7 @@
    Puerta de servidor a servidor para que la secretaria operativa del Hub consulte y mueva proyectos de Grow
    sin abrir la app. Escribe en las hojas Y en el estado compartido (31_ESTADO_PROYECTO), porque en la app el
    JSON del proyecto manda sobre la fila de 01_PROYECTOS: si solo se tocara la hoja, el cambio no se vería.
-   Body: { action:'__secretaria', token, op, ... }   op = resumen | equipo | crear | etapa | visita | dato | fotos | presupuesto_pdf | presupuesto_importar
+   Body: { action:'__secretaria', token, op, ... }   op = resumen | equipo | crear | etapa | visita | dato | fotos | presupuesto_pdf | presupuesto_importar | acortar
    El token es propio de esta puerta (solo su huella vive aquí; el Hub guarda el texto en GROW_TOKEN). */
 var SEC_HASH_ = '57dc1bec6bf523ae0c0039302d883f8a1efefda52eb90d1da8a733d92e99a56e';
 var SEC_ETAPAS_ = ["desconocido", "reunion", "archivos", "visita", "decision", "anteproyecto", "presupuesto", "contrato", "ejecucion", "fotos", "lanzamiento", "revision", "descartado"];
@@ -25,6 +25,7 @@ function secretariaApi_(body) {
         : op === 'fotos' ? secFotos_(body)
         : op === 'presupuesto_pdf' ? secPresupuestoPdf_(body)
         : op === 'presupuesto_importar' ? secPresupuestoImportar_(body)
+        : op === 'acortar' ? secAcortar_(body)
         : { ok: false, error: 'op desconocida: ' + op };
     } catch (e) { out = { ok: false, error: String(e && e.message || e) }; }
   }
@@ -690,4 +691,14 @@ function bqMejor_(busqueda, lista) {
   if (!r.length || r[0].puntaje < 0.7) return '';
   if (r.length > 1 && r[1].puntaje === r[0].puntaje && r[0].puntaje < 0.99) return '';   // empate: mejor no adivinar
   return r[0].item;
+}
+
+/* op «acortar» (Hub #488 · T2): el Hub le pide a Grow el enlace corto de algo que nace en Grow (el formulario de datos, los
+   PDF del presupuesto), así sale como grow.spacioam.com/<código> y no con la dirección del Hub (Juan, 12-nov-2026: «si el
+   proceso se genera en grow debe salir desde la URL de esa web app»). Reutiliza el acortador de enlaces.js: el mismo enlace
+   da el mismo código y solo acepta grow.spacioam.com, drive.google.com y docs.google.com.
+   { url, por? } → { ok, codigo, corto } */
+function secAcortar_(body) {
+  var r = enlaceGuardar_(body.url, 'Alma' + (body.por ? ' · ' + String(body.por).slice(0, 60) : ''));
+  return { ok: true, codigo: r.codigo, corto: r.corto };
 }
