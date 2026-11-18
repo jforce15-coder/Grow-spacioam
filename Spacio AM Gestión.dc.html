@@ -3337,7 +3337,7 @@ class Component extends DCLogic {
     const C = (x) => JSON.parse(JSON.stringify(x));
     this.setState({ demo: true, proyectos: db.PROYECTOS.map(p => C(p)), contactos: C(db.CONTACTOS), recepciones: C(db.RECEPCIONES), correos: C(db.CORREOS) });
   }
-  API_URL = "https://script.google.com/macros/s/AKfycbxPYwdz0Q8za7_wZzX37QeqODoqwxOeoXZpeEWp94HKtHMqru12VPD4xt0cOtWHZA1LDQ/exec";
+  API_URL = "https://script.google.com/macros/s/AKfycbxECFedgEkQF7wh9k__sLYza_jDO6yCljHVFBv984zZT2C73awX1ChqWXXdkiEfkA/exec";
   /* Con tiempo límite: sin esto, un POST colgado (señal intermitente en sitio)
      deja la promesa sin resolver y la cola de subida se congela para siempre. */
   api(action, payload = {}, msLimite) {

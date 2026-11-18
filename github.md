@@ -18,7 +18,7 @@ date: 2026-08-20T14:35:00Z
 
 ## Backend (Google Apps Script + Sheets)
 - Base de datos: Google Sheet "Spacio AM · Gestión" en Drive/Spacio AM/Grow App, 25 pestañas (01_PROYECTOS…25_CORREO_TEMPLATES) creadas por setup() de apps-script/Code.gs.
-- API Web App (POST/GET JSON): https://script.google.com/macros/s/AKfycbxPYwdz0Q8za7_wZzX37QeqODoqwxOeoXZpeEWp94HKtHMqru12VPD4xt0cOtWHZA1LDQ/exec
+- API Web App (POST/GET JSON): https://script.google.com/macros/s/AKfycbxECFedgEkQF7wh9k__sLYza_jDO6yCljHVFBv984zZT2C73awX1ChqWXXdkiEfkA/exec
 - Acciones: getAll · list · get · create · update · delete · uploadFile (Drive) · notify (correo). Ver apps-script/README.md.
 - Pendiente: conectar el DC a la API (reemplazar import de datos.js por fetch a getAll) y fijar FOLDER_ID de "Grow App" para uploadFile.
 
