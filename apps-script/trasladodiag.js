@@ -10,7 +10,8 @@ function growTrasladoDiag_(body) {
     if (!esRobot_({ robot: String(body.token || '') })) out = { ok: false, error: 'token' };
     else {
       var n = {}, abre = {}, cuenta = '';
-      ScriptApp.getProjectTriggers().forEach(function (t) { var f = t.getHandlerFunction(); n[f] = (n[f] || 0) + 1; });
+      /* El viejo no tiene el permiso de activadores (nunca los usó): sin permiso, activadores = null y sigue. */
+      try { ScriptApp.getProjectTriggers().forEach(function (t) { var f = t.getHandlerFunction(); n[f] = (n[f] || 0) + 1; }); } catch (e) { n = null; }
       try { cuenta = Session.getEffectiveUser().getEmail(); } catch (e) {}
       try { abre.hoja = !!SpreadsheetApp.openById(SPREADSHEET_ID).getName(); } catch (e) { abre.hoja = false; }
       try { abre.carpeta = !!DriveApp.getFolderById(FOLDER_ID).getName(); } catch (e) { abre.carpeta = false; }
