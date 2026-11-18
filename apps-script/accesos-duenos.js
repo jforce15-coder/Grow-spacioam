@@ -4,7 +4,7 @@
    se le pide crear la suya. Si ya existía, solo se le asegura el permiso (nunca se baja un rol de equipo).
    Se usa la acción addUser del login, que ahora pide la sesión de quien crea el dueño (un admin de Grow) o, en la
    sincronización completa, la llave del robot (fase 1c: la llave compartida sola ya no da de alta usuarios). */
-var LOGIN_URL_ = 'https://script.google.com/macros/s/AKfycbxfdwLzsA8bwgOxUTOtf3Hw1ptIm8Cy34tspmFndu3WtRrkVSSnGyBP7obRrm73mcUd/exec';
+var LOGIN_URL_ = 'https://script.google.com/macros/s/AKfycbyX_ON7wF0Logs2EfL-K13MJXPDAGADWizVxJt_DP2ZAvSscS1qirYeZYOP5n-zfhnO/exec';
 
 function loginAltaDueno_(email, nombre, auth) {
   email = String(email || '').trim().toLowerCase(); if (email.indexOf('@') < 0) return { ok: false, error: 'sin correo' };
