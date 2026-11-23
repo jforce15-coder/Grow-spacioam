@@ -2821,6 +2821,9 @@ function Segmented({
       background: "var(--bg-alt)",
       borderRadius: "var(--r-pill)",
       gap: 2,
+      maxWidth: "100%",
+      overflowX: "auto",
+      scrollbarWidth: "none",
       ...style
     }
   }, options.map(o => {
@@ -2828,6 +2831,7 @@ function Segmented({
     return /*#__PURE__*/React.createElement("button", {
       key: o.value,
       type: "button",
+      "aria-pressed": active,
       onClick: () => onChange && onChange(o.value),
       style: {
         border: "none",
@@ -2840,6 +2844,7 @@ function Segmented({
         letterSpacing: "0.12em",
         textTransform: "uppercase",
         whiteSpace: "nowrap",
+        flexShrink: 0,
         background: active ? "var(--bg)" : "transparent",
         color: active ? "var(--fg)" : "var(--fg-muted)",
         boxShadow: active ? "var(--shadow-xs)" : "none",
