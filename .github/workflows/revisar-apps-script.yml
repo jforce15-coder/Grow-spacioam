@@ -10,6 +10,7 @@ on:
     paths:
       - "apps-script/**"
       - ".github/entrar-sin-cupo.js"
+      - ".github/documentos-portal.js"
       - ".clasp.json"
 
 jobs:
@@ -35,6 +36,10 @@ jobs:
       - name: Entrar nunca depende del cupo, la sesión firmada se revisa aquí si el login no contesta y lo que no tiene firma válida no entra (dobles)
         # 18-nov-2026, Juan: «El cupo nunca nos debería evitar que hagamos login».
         run: node .github/entrar-sin-cupo.js apps-script
+
+      - name: Documentos del portal del propietario, cada uno ve solo lo suyo y el aviso sale solo si le llega (dobles)
+        # 26-nov-2026: Grow marcó «Enviado» documentos que el propietario nunca vio.
+        run: node .github/documentos-portal.js apps-script
 
       - name: JSON y .clasp.json
         run: |
