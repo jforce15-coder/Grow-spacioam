@@ -205,10 +205,16 @@ function route(e) {
     var __diag = accesosDiag_(p) || cupoDiag_(p) || loginSecretoDiag_(p) || duenosDiag_(p) || (typeof growTrasladoDiag_ === 'function' && growTrasladoDiag_(p)) || secretariaApi_(p); if (__diag) return __diag;   // fase 1b: resumen de accesos (robot)
     var __ses = sesionDe_(p); registrarAcceso_(p.action, __ses ? true : esRobot_(p) ? 'r' : false);
     var __docs = typeof documentosApi_ === 'function' && documentosApi_(p, __ses); if (__docs) return out({ ok: true, data: __docs });   // documentos del portal del propietario (documentos.js): revisa quién pregunta
-    var __bloq = datosClientePasa_(p) ? null : exigirSesion_(p.action, !!__ses, p, ['ping', 'enlace']); if (__bloq) return __bloq;   // fase 1c: solo bloquea con SESION_EXIGIR = 1
+    var __pub = datosClientePasa_(p);
+    var __bloq = __pub ? null : exigirSesion_(p.action, !!__ses, p, ['ping', 'enlace']); if (__bloq) return __bloq;   // fase 1c: solo bloquea con SESION_EXIGIR = 1
     var a = p.action, r;
+    /* Qué ve y qué toca esta sesión (alcance.js): el propietario, solo lo suyo; sin sesión, nada. El formulario público
+       de «datos del cliente» (__pub) ya pasó su propia revisión. */
+    var __alc = alcance_(p, __ses);
+    if (ALC_ESCRIBE_[a] && !__pub) { var __no = alcPuedeEscribir_(__alc, p); if (__no) return out({ ok: false, error: __no }); }
+    if (ALC_SOLO_EQUIPO_[a] && !__alc.todo) return out({ ok: false, error: "Esa acción es solo para el equipo de Spacio AM." });
     switch (a) {
-      case "getAll":     r = apiGetAll(p.fresh === true || p.fresh === "true"); if (__ses) cerrarDocsUnaVez_(); break;
+      case "getAll":     r = alcTodo_(__alc, apiGetAll(p.fresh === true || p.fresh === "true")); if (__ses) cerrarDocsUnaVez_(); break;
       /* Diagnóstico: con qué identidad corre esta implementación y si ve Drive.
          Si `usuario` viene vacío, la implementación corre anónima → Drive se niega. */
       case "diag": {
@@ -222,15 +228,15 @@ function route(e) {
         r = { usuario: u, folderId: FOLDER_ID || "", drive: drive, carpeta: carpeta, escribe: escribe };
         break;
       }
-      case "list":       r = apiList(p.sheet); break;
-      case "get":        r = apiGet(p.sheet, p.id); break;
+      case "list":       r = apiList(p.sheet); r.rows = alcFilas_(__alc, p.sheet, r.rows, readAll_); break;
+      case "get":        r = apiGet(p.sheet, p.id); if (r && !alcFilas_(__alc, p.sheet, [r], readAll_).length) r = null; break;
       case "create":     r = apiCreate(p.sheet, p.data); cacheDrop_(); try { loginDuenoDespuesDe_(p.sheet, r && (r.id || r[SCHEMA[p.sheet] ? SCHEMA[p.sheet][0] : ""] || (p.data || {})[SCHEMA[p.sheet] ? SCHEMA[p.sheet][0] : ""]), p); } catch (eL) {} break;
       case "update":     r = apiUpdate(p.sheet, p.id, p.data); cacheDrop_(); try { loginDuenoDespuesDe_(p.sheet, p.id, p); } catch (eL) {} break;
       case "delete":     r = apiDelete(p.sheet, p.id); cacheDrop_(); break;
       case "uploadFile": r = uploadFile(p.b64, p.name, p.mime, p.subfolder); cacheDrop_(); break;
       /* Autoguardado colaborativo: el estado completo de un proyecto, con versión. */
       case "saveState": r = saveState(p.proyecto_id, p.version, p.json, p.por); cacheDrop_(); break;
-      case "getStates": r = getStates(p.since, p.ids); break;
+      case "getStates": r = alcEstados_(__alc, getStates(p.since, p.ids)); break;
       case "notify":     r = notify(p); break;
       case "enviarCorreo": r = notify(p); break;
       case "importSheet": r = importSheet(p.id, p.gid); break;
@@ -246,6 +252,9 @@ function route(e) {
     return out({ ok:false, error:err.toString() });
   }
 }
+/* Acciones que escriben (un propietario solo en lo suyo) y acciones solo del equipo (ver alcance.js). */
+var ALC_ESCRIBE_ = { create: 1, update: 1, delete: 1, uploadFile: 1, saveState: 1, notify: 1, enviarCorreo: 1 };
+var ALC_SOLO_EQUIPO_ = { diag: 1, importSheet: 1, verDoc: 1 };
 /* Fase 1c · formulario «datos del cliente» (grow.spacioam.com/?datos=<proyecto>&k=<llave>): lo llena el
    propietario SIN sesión, así que solo esto pasa sin ella:
    · saveState de SU fila DATOS-<proyecto>, si trae la llave del enlace (= datosToken del proyecto);

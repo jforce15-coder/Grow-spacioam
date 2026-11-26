@@ -11,6 +11,8 @@ on:
       - "apps-script/**"
       - ".github/entrar-sin-cupo.js"
       - ".github/documentos-portal.js"
+      - ".github/alcance.js"
+      - ".github/enlaces.js"
       - ".clasp.json"
 
 jobs:
@@ -40,6 +42,10 @@ jobs:
       - name: Documentos del portal del propietario, cada uno ve solo lo suyo y el aviso sale solo si le llega (dobles)
         # 26-nov-2026: Grow marcó «Enviado» documentos que el propietario nunca vio.
         run: node .github/documentos-portal.js apps-script
+
+      - name: Qué ve cada sesión, el propietario solo lo suyo, sin sesión nada y el equipo todo (dobles)
+        # 26-nov-2026: getAll y getStates devolvían todos los proyectos a cualquier sesión, también a la de un propietario.
+        run: node .github/alcance.js apps-script
 
       - name: JSON y .clasp.json
         run: |
