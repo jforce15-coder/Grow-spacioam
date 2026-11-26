@@ -61,7 +61,7 @@ function caja(o) {
     Utilities: { base64Encode: b => Buffer.from(b).toString('base64') },
   };
   vm.createContext(ctx);
-  vm.runInContext(fs.readFileSync(path.join(DIR, 'documentos.js'), 'utf8'), ctx, { filename: 'documentos.js' });
+  ['alcance.js', 'documentos.js'].forEach(f => vm.runInContext(fs.readFileSync(path.join(DIR, f), 'utf8'), ctx, { filename: f }));
   const api = (body, ses) => ctx.documentosApi_(body, ses || null);
   return { ctx, api, correos, creados, hojas };
 }

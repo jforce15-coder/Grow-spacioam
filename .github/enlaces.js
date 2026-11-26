@@ -53,7 +53,7 @@ function caja(o) {
       base64EncodeWebSafe: b => Buffer.from(b).toString('base64url'), formatDate: d => new Date(d).toISOString().slice(0, 10) },
     SpreadsheetApp: {} };
   vm.createContext(ctx);
-  ['Código.js', 'sesion.js', 'enlaces.js'].forEach(f => {
+  ['Código.js', 'sesion.js', 'alcance.js', 'enlaces.js'].forEach(f => {
     if (fs.existsSync(path.join(DIR, f))) vm.runInContext(fs.readFileSync(path.join(DIR, f), 'utf8'), ctx, { filename: f });
   });
   // Lo que no es de esta prueba: los diagnósticos de otros archivos y la red del login.

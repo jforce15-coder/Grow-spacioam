@@ -24,20 +24,19 @@ function documentosApi_(p, ses) {
   if (a === 'misDocumentos') return docsMios_(quien);
   if (a === 'verDocumento') return docsVer_(quien, String(p.doc_id || ''));
   if (quien.rol !== 'equipo') return { ok: false, error: 'Solo el equipo de Spacio AM puede compartir documentos.' };
-  if (a === 'docsProyecto') return { ok: true, documentos: docsDe_(p.proyecto_id ? [String(p.proyecto_id)] : null) };
+  if (a === 'docsProyecto') return { ok: true, quien: quien.rol, documentos: docsDe_(p.proyecto_id ? [String(p.proyecto_id)] : null) };   // quien: lo decidió alcance_ (sirve para revisar la publicación)
   if (a === 'docsCompartir') return docsCompartir_(String(p.proyecto_id || ''), p.archivos || [], quien.email);
   if (a === 'docsQuitar') return docsQuitar_(String(p.proyecto_id || ''), String(p.archivo_id || ''));
   return docsAvisar_(p, quien.email);
 }
 
-/* Quién pregunta: «equipo» (administración o robot), «dueno» (propietario con sesión) o nadie. */
+/* Quién pregunta, con la misma regla que todo Grow (alcance_ en alcance.js): «equipo» (administración o robot),
+   «dueno» (propietario con sesión, con sus proyectos) o nadie. Los técnicos y recepción no manejan documentos. */
 function docsQuien_(p, ses) {
-  if (esRobot_(p)) return { rol: 'equipo', email: 'robot' };
-  if (!ses || !ses.email) return { rol: '' };
-  var r = String((ses.apps && ses.apps.grow) || '').toLowerCase(), email = String(ses.email).trim().toLowerCase();
-  if (/propiet|dueno|dueño|owner|socio/.test(r)) return { rol: 'dueno', email: email };
-  if (/admin/.test(r)) return { rol: 'equipo', email: email };
-  return { rol: '', email: email };   // técnicos, recepción o sin permiso en Grow: nada de esto
+  var alc = alcance_(p, ses);
+  if (alc.todo && alc.admin) return { rol: 'equipo', email: alc.email };
+  if (alc.rol === 'dueno') return { rol: 'dueno', email: alc.email, pids: alc.pids };
+  return { rol: '' };
 }
 
 function docsHoja_() {
@@ -93,21 +92,6 @@ function docsQuitar_(pid, aid) {
   } finally { lock.releaseLock(); }
 }
 
-/* Proyectos de un propietario: los de 01_PROYECTOS con su dueno_id y los del estado compartido con su duenoId. */
-function docsDuenoIds_(email) {
-  return readAll_('02_DUENOS').filter(function (d) { return String(d.email || '').trim().toLowerCase() === email; })
-    .map(function (d) { return String(d.dueno_id); });
-}
-function docsProyectosDe_(ids) {
-  var out = {};
-  if (!ids.length) return [];
-  readAll_('01_PROYECTOS').forEach(function (r) { if (ids.indexOf(String(r.dueno_id || '')) >= 0) out[String(r.proyecto_id)] = 1; });
-  (getStates('', null).estados || []).forEach(function (e) {
-    var j = null; try { j = JSON.parse(String(e.json || 'null').replace(/^~/, '')); } catch (x) {}
-    if (j && j.duenoId && ids.indexOf(String(j.duenoId)) >= 0) out[String(e.proyecto_id)] = 1;
-  });
-  return Object.keys(out);
-}
 /* El propietario de un proyecto, si está vinculado y tiene correo (si no, no tiene acceso al portal). */
 function docsDuenoDe_(pid) {
   var did = '';
@@ -121,14 +105,14 @@ function docsDuenoDe_(pid) {
 
 function docsMios_(quien) {
   if (quien.rol !== 'dueno') return { ok: true, documentos: [], machote: false };
-  var pids = docsProyectosDe_(docsDuenoIds_(quien.email));
+  var pids = quien.pids || [];
   return { ok: true, machote: pids.length > 0, proyectos: pids,
     documentos: docsDe_(pids).filter(function (d) { return d.archivo_id !== 'machote'; }).map(function (d) { return { doc_id: d.doc_id, proyecto_id: d.proyecto_id, nombre: d.nombre, tipo: d.tipo, mime: d.mime, peso: d.peso, compartido_en: d.compartido_en }; }) };
 }
 function docsVer_(quien, docId) {
   var d = docsFilas_().filter(function (x) { return x.doc_id === docId; })[0];
   if (!d || d.archivo_id === 'machote' || !d.file_id) return { ok: false, error: 'Ese documento ya no está compartido.' };
-  if (quien.rol === 'dueno' && docsProyectosDe_(docsDuenoIds_(quien.email)).indexOf(d.proyecto_id) < 0) return { ok: false, error: 'Ese documento no es de tus proyectos.' };
+  if (quien.rol === 'dueno' && (quien.pids || []).indexOf(d.proyecto_id) < 0) return { ok: false, error: 'Ese documento no es de tus proyectos.' };
   var blob = DriveApp.getFileById(d.file_id).getBlob();
   if (blob.getBytes().length > DOCS_MAX_BYTES_) return { ok: false, error: 'El documento es demasiado grande para verlo aquí.' };
   return { ok: true, nombre: d.nombre, mime: blob.getContentType() || d.mime || 'application/octet-stream', b64: Utilities.base64Encode(blob.getBytes()) };
