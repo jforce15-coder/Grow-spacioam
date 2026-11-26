@@ -204,6 +204,7 @@ function route(e) {
     var __mud = typeof trasladoEntregar_ === 'function' && trasladoEntregar_(p); if (__mud) return __mud;   // traslado a Workspace: Propiedades solo a alma@ (traslado.js)
     var __diag = accesosDiag_(p) || cupoDiag_(p) || loginSecretoDiag_(p) || duenosDiag_(p) || (typeof growTrasladoDiag_ === 'function' && growTrasladoDiag_(p)) || secretariaApi_(p); if (__diag) return __diag;   // fase 1b: resumen de accesos (robot)
     var __ses = sesionDe_(p); registrarAcceso_(p.action, __ses ? true : esRobot_(p) ? 'r' : false);
+    var __docs = typeof documentosApi_ === 'function' && documentosApi_(p, __ses); if (__docs) return out({ ok: true, data: __docs });   // documentos del portal del propietario (documentos.js): revisa quién pregunta
     var __bloq = datosClientePasa_(p) ? null : exigirSesion_(p.action, !!__ses, p, ['ping', 'enlace']); if (__bloq) return __bloq;   // fase 1c: solo bloquea con SESION_EXIGIR = 1
     var a = p.action, r;
     switch (a) {
