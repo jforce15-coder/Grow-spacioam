@@ -3,24 +3,18 @@
 ## Qué subir
 
 ```
-index.html                                   ← la app completa (12.0 MB, autocontenida)
-.nojekyll                                    ← vacío; evita que GitHub Pages procese el sitio
-assets/brand/logo-stamp-transparent.png      ← logo del loader (ruta relativa del design system)
-assets/brand/logo-stamp-white.png
+index.html          ← el cargador (unos 30 KB): muestra el esqueleto y arma el app
+assets/app/         ← las piezas del app: plantilla, scripts, fuentes y fotos (una por archivo)
+.nojekyll           ← vacío; evita que GitHub Pages procese el sitio
 ```
 
-Nada más. Todo lo demás (datos, fotos, fuentes, membrete, los módulos de
-contratos y el design system) va dentro de `index.html`.
+Desde el 27-nov-2026 el app ya no va todo dentro de `index.html` (eran 15 MB en base64: 11 s en blanco en 4G).
+`node tools/aligerar.js` saca cada pieza a `assets/app/` con su sello `?v=` y el navegador baja cada una cuando
+la necesita.
 
-```bash
-git add index.html .nojekyll assets/brand/logo-stamp-transparent.png assets/brand/logo-stamp-white.png
-git commit -m "Login sin scroll, datos demo aislados y botón Crear proyecto"
-git push
-```
-
-En este release **solo cambió `index.html`**. Los tres archivos de `assets/` y
-`.nojekyll` ya están en el repo desde el release anterior; súbelos únicamente si
-es un deploy limpio.
+- **Cambiar una pieza:** edita su archivo en `assets/app/` y corre `node tools/aligerar.js` (pone el sello nuevo).
+- **Exportación nueva de Claude Design:** pega el `index.html` exportado y corre `node tools/aligerar.js`.
+- El check «Revisar index» falla si `index.html` pasa de 1 MB, si trae piezas en base64 o si falta un sello.
 
 ## Qué cambió en este release
 
