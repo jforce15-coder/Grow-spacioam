@@ -1,0 +1,42 @@
+/* Spacio AM · Cliente de auth unificado — GROW
+   Hoja «Control de usuarios» (una sola para las 4 apps).
+   Cárgalo en index.html DESPUÉS de React/ReactDOM y ANTES de app.js:
+       <script src="sa-auth-client.js"></script>
+   Ya viene configurado con el endpoint de control de usuarios.               */
+(function (global) {
+  var CFG = {
+    url:   'https://script.google.com/macros/s/AKfycbyX_ON7wF0Logs2EfL-K13MJXPDAGADWizVxJt_DP2ZAvSscS1qirYeZYOP5n-zfhnO/exec',
+    token: 'SpacioAM2026!'
+  };
+
+  function call(action, payload) {
+    var body = Object.assign({ action: action, token: CFG.token }, payload || {});
+    // text/plain evita el preflight CORS de Apps Script
+    return fetch(CFG.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json(); })
+      .catch(function (e) { return { ok: false, error: String(e) }; });
+  }
+
+  var SAAuth = {
+    APP: 'grow',   // clave de ESTA app en el perfil (r.profile.apps['grow'])
+    configure: function (url, token) { CFG.url = url; if (token) CFG.token = token; },
+    login:              function (email, password) { return call('login', { email: email, password: password }); },
+    setInitialPassword: function (email, next)     { return call('setInitialPassword', { email: email, next: next }); },
+    profile:            function (email)           { return call('profile', { email: email }); },
+    /* Todos los usuarios del perfil unificado (hoja «Control de usuarios») con su rol en Grow. */
+    users:              function ()                { return call('users', { app: SAAuth.APP }); },
+    /* Propietarios y socios de toda la hoja, sin filtrar por app. */
+    owners:             function ()                { return call('owners', {}); },
+    /* Alta de usuario desde la app: solo un Administrador principal (by) puede hacerlo. */
+    addUser:            function (by, email, nombre, rol) { return call('addUser', { by: by, email: email, nombre: nombre, rol: rol, app: SAAuth.APP }); },
+    setPassword:        function (email, cur, next){ return call('setPassword', { email: email, current: cur, next: next }); },
+    setEmail:           function (email, next)     { return call('setEmail', { email: email, next: next }); },
+    setPhoto:           function (email, url)      { return call('setPhoto', { email: email, url: url }); },
+    roleFor:            function (profile, appKey) { return (profile && profile.apps && profile.apps[appKey || SAAuth.APP]) || null; }
+  };
+
+  global.SAAuth = SAAuth;
+})(window);

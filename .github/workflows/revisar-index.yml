@@ -1,0 +1,27 @@
+# Que el app de Grow abra rápido en el teléfono (27-nov-2026): index.html era un bundle de 15 MB con todo en base64
+# (11 s en blanco en 4G). tools/aligerar.js saca cada pieza a assets/app/ y este check no deja volver atrás:
+# falla si index.html pesa más de 1 MB, si trae piezas en base64 o si un archivo de assets/app cambió sin su sello ?v=.
+
+name: Revisar index
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "index.html"
+      - "assets/app/**"
+      - "tools/aligerar.js"
+      - ".github/workflows/revisar-index.yml"
+
+jobs:
+  revisar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: index.html liviano y piezas con su sello al día
+        run: node tools/aligerar.js --revisar
